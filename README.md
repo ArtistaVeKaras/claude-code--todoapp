@@ -17,7 +17,14 @@ index.html   Page layout
 styles.css   Styles for the light and dark themes
 i18n.js      Translations (English, French, Portuguese)
 app.js       App logic
+docs/diagrams/  Architecture diagrams
 ```
+
+## How it works
+
+![TODO app architecture](docs/diagrams/architecture.svg)
+
+The whole app runs in your browser. Whatever opens it (the file on your disk, a local server, or a hosting site) only delivers the four files. Tasks, theme and language are saved in the browser's localStorage, so there is no backend server or database.
 
 ## Run it from a terminal
 
