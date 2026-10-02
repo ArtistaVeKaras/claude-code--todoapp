@@ -71,6 +71,8 @@ Then ask it in plain words, for example:
 
 Claude Code will start a server such as `python3 -m http.server 8000` in the background, and you can open http://localhost:8000 in your browser. You can also just ask it to "open index.html in my browser".
 
+This repo includes a project skill, [`run-todo-app`](.claude/skills/run-todo-app/SKILL.md), that tells Claude Code exactly how to do this. You can also run it directly by typing `/run-todo-app`.
+
 ## Adding a language
 
 1. Open `i18n.js`, copy the `en` block and translate each value.
