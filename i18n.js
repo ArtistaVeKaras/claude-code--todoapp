@@ -66,4 +66,26 @@ const TRANSLATIONS = {
     darkMode: 'Cambiar al modo oscuro',
     lightMode: 'Cambiar al modo claro',
   },
+  pl: {
+    title: 'Moje zadania',
+    language: 'Język',
+    placeholder: 'Co trzeba zrobić?',
+    add: 'Dodaj',
+    all: 'Wszystkie',
+    active: 'Aktywne',
+    completed: 'Ukończone',
+    empty: 'Nic do zrobienia. Miłego dnia!',
+    clearCompleted: 'Usuń ukończone',
+    delete: 'Usuń',
+    toggleTask: 'Oznacz jako ukończone',
+    itemsLeft: (n) => {
+      if (n === 1) return '1 zadanie do zrobienia';
+      const lastTwo = n % 100;
+      const last = n % 10;
+      const few = last >= 2 && last <= 4 && (lastTwo < 12 || lastTwo > 14);
+      return `${n} ${few ? 'zadania' : 'zadań'} do zrobienia`;
+    },
+    darkMode: 'Przełącz na tryb ciemny',
+    lightMode: 'Przełącz na tryb jasny',
+  },
 };
