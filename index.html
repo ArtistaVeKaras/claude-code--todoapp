@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TODO App</title>
+  <link rel="stylesheet" href="styles.css">
+  <script>
+    // Apply the saved theme before the page paints to avoid a flash.
+    try {
+      var savedTheme = JSON.parse(localStorage.getItem('todo-theme'));
+      if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
+    } catch (e) {}
+  </script>
+</head>
+<body>
+  <main class="app">
+    <header class="app-header">
+      <h1 data-i18n="title">My Tasks</h1>
+      <div class="controls">
+        <label class="visually-hidden" for="language-select" data-i18n="language">Language</label>
+        <select id="language-select">
+          <option value="en">English</option>
+          <option value="fr">Français</option>
+          <option value="pt">Português</option>
+        </select>
+        <button id="theme-toggle" type="button" class="icon-button"></button>
+      </div>
+    </header>
+
+    <form id="todo-form" class="todo-form">
+      <label class="visually-hidden" for="todo-input" data-i18n="placeholder">What needs to be done?</label>
+      <input id="todo-input" type="text" autocomplete="off" maxlength="200" data-i18n-placeholder="placeholder" placeholder="What needs to be done?">
+      <button type="submit" data-i18n="add">Add</button>
+    </form>
+
+    <nav class="filters" aria-label="Filters">
+      <button type="button" data-filter="all" data-i18n="all" class="active">All</button>
+      <button type="button" data-filter="active" data-i18n="active">Active</button>
+      <button type="button" data-filter="completed" data-i18n="completed">Completed</button>
+    </nav>
+
+    <ul id="todo-list" class="todo-list"></ul>
+    <p id="empty-message" class="empty" data-i18n="empty">Nothing to do. Enjoy your day!</p>
+
+    <footer class="app-footer">
+      <span id="items-left"></span>
+      <button id="clear-completed" type="button" class="link-button" data-i18n="clearCompleted">Clear completed</button>
+    </footer>
+  </main>
+
+  <script src="i18n.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
