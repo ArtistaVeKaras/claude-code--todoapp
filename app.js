@@ -1,4 +1,5 @@
 // Simple TODO app: tasks, theme and language are saved in localStorage.
+// Requires i18n.js to be loaded first (it defines TRANSLATIONS).
 
 const STORAGE_KEYS = { todos: 'todo-items', theme: 'todo-theme', lang: 'todo-lang' };
 
