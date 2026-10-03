@@ -7,7 +7,7 @@ A simple TODO web app built with plain HTML, CSS and JavaScript. There is nothin
 - Add, complete and delete tasks
 - Filter by All, Active or Completed, and clear completed tasks
 - Dark and light theme toggle (🌙 / ☀️ button)
-- Language switcher: English, French and Portuguese
+- Language switcher: English, French, Portuguese, Spanish and Polish
 - Tasks, theme and language are saved in your browser (localStorage), so they are still there after a reload
 
 ## Project structure
@@ -15,10 +15,12 @@ A simple TODO web app built with plain HTML, CSS and JavaScript. There is nothin
 ```
 index.html   Page layout
 styles.css   Styles for the light and dark themes
-i18n.js      Translations (English, French, Portuguese)
+i18n.js      Translations (English, French, Portuguese, Spanish, Polish)
 app.js       App logic
-docs/diagrams/  Architecture diagrams
+docs/        Developer documentation and architecture diagrams
 ```
+
+For a detailed description of the code, see the [developer documentation](docs/DEVELOPER.md).
 
 ## How it works
 
