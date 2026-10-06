@@ -34,8 +34,8 @@
       "Bash(scp *)",
       "Bash(git push --force*)",
       "Bash(git push -f*)",
-      "Bash(git push * main)",
-      "Bash(git push * master)",
+      "Bash(git push * * main)",
+      "Bash(git push * * master)",
       "Bash(git reset --hard*)",
       "Bash(gh pr merge*)"
     ]
