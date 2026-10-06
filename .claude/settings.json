@@ -8,6 +8,16 @@
       "Bash(git commit:*)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch:*)",
+      "Bash(git switch:*)",
+      "Bash(git pull --ff-only:*)",
+      "Bash(git push -u origin:*)",
+      "Bash(git push origin:*)",
+      "Bash(gh pr create:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh pr checks:*)",
       "Edit(/src/**)"
     ],
     "deny": [
@@ -21,7 +31,13 @@
       "Bash(curl *)",
       "Bash(wget *)",
       "Bash(ssh *)",
-      "Bash(scp *)"
+      "Bash(scp *)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push * main)",
+      "Bash(git push * master)",
+      "Bash(git reset --hard*)",
+      "Bash(gh pr merge*)"
     ]
   }
 }
