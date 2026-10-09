@@ -1,0 +1,83 @@
+<svg viewBox="0 0 960 320" width="960" height="320" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">TODO app: life of a task</title>
+  <desc id="desc">A task is created Active when text is submitted, toggles between Active and Done when its checkbox is ticked or unticked, and is removed from either state with the ✕ button or, when Done, with Clear completed.</desc>
+  <style>
+    :root {
+      --panel: #ffffff; --ink: #1c1e26; --muted: #5d6272; --line: #cfd2dc;
+      --accent: #4f46e5; --accent-bg: #eceeff; --store: #15803d; --store-bg: #e8f7ee;
+      --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+      --mono: ui-monospace, Consolas, "Courier New", monospace;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --panel: #1b1d27; --ink: #e7e8ee; --muted: #9a9fb0; --line: #3a3e4d;
+        --accent: #8b93ff; --accent-bg: #23264a; --store: #4ade80; --store-bg: #14301f;
+      }
+    }
+    .bg { fill: var(--panel) }
+    text { font-family: var(--sans) }
+    .h { font-size: 13px; font-weight: 600; fill: var(--ink) }
+    .t { font-size: 12px; fill: var(--ink) }
+    .m { font-size: 12px; fill: var(--muted) }
+    .l { font-size: 11px; fill: var(--muted) }
+    .ls { font-size: 11px; fill: var(--store) }
+    .cap { font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; fill: var(--muted) }
+    .mono { font-family: var(--mono) }
+    .mono.m, .mono.l { font-size: 11px }
+    .box { fill: var(--panel); stroke: var(--line); stroke-width: 1.2 }
+    .box-a { fill: var(--accent-bg); stroke: var(--accent); stroke-width: 1.2 }
+    .box-s { fill: var(--store-bg); stroke: var(--store); stroke-width: 1.2 }
+    .group { fill: none; stroke: var(--store); stroke-width: 1.2; stroke-dasharray: 6 4 }
+    .ln { fill: none; stroke: var(--muted); stroke-width: 1.5 }
+    .ln-a { fill: none; stroke: var(--accent); stroke-width: 1.8 }
+    .ln-s { fill: none; stroke: var(--store); stroke-width: 1.8 }
+    .dash { stroke-dasharray: 5 4 }
+    .ah { fill: var(--muted) }
+    .ah-a { fill: var(--accent) }
+    .ah-s { fill: var(--store) }
+    .dot { fill: var(--muted) }
+    .ring { fill: none; stroke: var(--muted); stroke-width: 1.5 }
+  </style>
+  <rect class="bg" width="960" height="320"/>
+      <defs>
+        <marker id="f3a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-a"/></marker>
+        <marker id="f3n" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah"/></marker>
+      </defs>
+
+      <circle class="dot" cx="40" cy="135" r="8"/>
+      <text class="l" x="40" y="112" text-anchor="middle">no task yet</text>
+
+      <path class="ln-a" d="M48 135 H240" marker-end="url(#f3a)"/>
+      <text class="l" x="144" y="127" text-anchor="middle">Add: submit non-empty text</text>
+      <text class="l" x="144" y="152" text-anchor="middle">blank input is ignored</text>
+
+      <rect class="box-a" x="240" y="80" width="200" height="110" rx="8"/>
+      <text class="h" x="254" y="104">Active</text>
+      <text class="t mono" x="254" y="124" style="font-size:11px">done: false</text>
+      <text class="m" x="254" y="144">listed under All, Active</text>
+      <text class="m" x="254" y="162">counted in “N items left”</text>
+
+      <rect class="box" x="540" y="80" width="200" height="110" rx="8"/>
+      <text class="h" x="554" y="104">Done</text>
+      <text class="t mono" x="554" y="124" style="font-size:11px">done: true</text>
+      <text class="m" x="554" y="144">listed under All, Completed</text>
+      <text class="m" x="554" y="162">text struck through (.done)</text>
+
+      <path class="ln-a" d="M440 115 H540" marker-end="url(#f3a)"/>
+      <text class="l" x="490" y="108" text-anchor="middle">tick</text>
+      <path class="ln-a" d="M540 155 H440" marker-end="url(#f3a)"/>
+      <text class="l" x="490" y="172" text-anchor="middle">untick</text>
+
+      <path class="ln-a" d="M740 135 H884" marker-end="url(#f3a)"/>
+      <text class="l" x="812" y="127" text-anchor="middle">✕ or Clear completed</text>
+
+      <path class="ln-a" d="M340 190 V260 H900 V151" marker-end="url(#f3a)"/>
+      <text class="l" x="620" y="252" text-anchor="middle">✕ on an active task</text>
+
+      <circle class="ring" cx="900" cy="135" r="14"/>
+      <circle class="dot" cx="900" cy="135" r="8"/>
+      <text class="l" x="900" y="108" text-anchor="middle">removed</text>
+
+      <text class="l" x="20" y="300">Every arrow ends with save() then render().</text>
+  
+</svg>
