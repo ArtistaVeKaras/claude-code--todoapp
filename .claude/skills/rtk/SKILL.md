@@ -1,6 +1,6 @@
 ---
 name: rtk
-description: Uses RTK (Rust Token Killer), a CLI proxy that compresses command output to save tokens. Use whenever running git, gh, ls, grep, tests, linters, builds, docker or package commands, when output is noisy or long, or when the user asks about token savings or `rtk gain`.
+description: Uses RTK (Rust Token Killer), a CLI proxy that compresses command output to save tokens. Use whenever running git, gh, ls, grep, tests, linters, builds, docker or package commands, when output is noisy or long, or when the user asks about token savings or `rtk gain`. Do not compress logs that need debugging; read those in full.
 ---
 
 # RTK: token-saving command output
@@ -48,9 +48,27 @@ git commit -m "Fix todo filter"   # plain; the hook compresses it to "ok 1a2b3c4
 - `rtk gain --graph`: savings over time
 - `rtk discover`: commands that ran without RTK and could have been compressed
 
+## Debugging: do not compress important logs
+
+When a log is needed to diagnose a problem, read it in full. Compression drops repeated lines, timestamps, stack frames and context that can be the clue. This rule takes precedence over the global `~/.claude/RTK.md`, which only asks for a rerun when output is unusable: for debugging, go uncompressed from the first run.
+
+Run these with `rtk proxy <cmd>`. A plain command is not enough, because the hook rewrites it into a compressed `rtk` call. Do not use `rtk err`, `rtk test`, `rtk summary` or `rtk read -l aggressive` for them:
+
+- Failing tests or builds you are investigating
+- Stack traces, crash dumps and error logs (application, server, browser console, CI)
+- Anything the user says to debug, investigate, trace or find the root cause of
+- Logs where ordering, timing, repetition or exact wording matters (race conditions, flaky tests, retries)
+
+Rules:
+
+- Run the uncompressed command first. A flaky failure may not reproduce on a rerun, and the original log would be lost.
+- If you already ran a compressed command and its output is empty, vague or does not explain the failure, rerun it with `rtk proxy` before guessing.
+- For very large logs, narrow the source instead of compressing it, so the lines you keep stay verbatim. In PowerShell use `Get-Content app.log -Tail 200` or `Select-String "ERROR" app.log`; in Bash use `tail -n 200 app.log`.
+- Go back to RTK once the debugging is done.
+
 ## Need the raw output
 
-Use `rtk proxy <cmd>` for unfiltered passthrough (still tracked). If filtered output hides what you need to debug, rerun with `rtk proxy` or without the prefix.
+Use `rtk proxy <cmd>` for unfiltered passthrough (still tracked). Running the command without the `rtk` prefix does not bypass the hook.
 
 ## Windows caveats
 
