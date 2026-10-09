@@ -1,0 +1,145 @@
+<svg viewBox="0 0 880 560" width="880" height="560" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">TODO app: from click to screen and storage</title>
+  <desc id="desc">Each user action changes an in-memory variable in app.js. Changes to todos, theme and lang are saved to localStorage and redrawn on screen; the filter is redrawn but never saved. localStorage is read once at startup.</desc>
+  <style>
+    :root {
+      --panel: #ffffff; --ink: #1c1e26; --muted: #5d6272; --line: #cfd2dc;
+      --accent: #4f46e5; --accent-bg: #eceeff; --store: #15803d; --store-bg: #e8f7ee;
+      --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+      --mono: ui-monospace, Consolas, "Courier New", monospace;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --panel: #1b1d27; --ink: #e7e8ee; --muted: #9a9fb0; --line: #3a3e4d;
+        --accent: #8b93ff; --accent-bg: #23264a; --store: #4ade80; --store-bg: #14301f;
+      }
+    }
+    .bg { fill: var(--panel) }
+    text { font-family: var(--sans) }
+    .h { font-size: 13px; font-weight: 600; fill: var(--ink) }
+    .t { font-size: 12px; fill: var(--ink) }
+    .m { font-size: 12px; fill: var(--muted) }
+    .l { font-size: 11px; fill: var(--muted) }
+    .ls { font-size: 11px; fill: var(--store) }
+    .cap { font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; fill: var(--muted) }
+    .mono { font-family: var(--mono) }
+    .mono.m, .mono.l { font-size: 11px }
+    .box { fill: var(--panel); stroke: var(--line); stroke-width: 1.2 }
+    .box-a { fill: var(--accent-bg); stroke: var(--accent); stroke-width: 1.2 }
+    .box-s { fill: var(--store-bg); stroke: var(--store); stroke-width: 1.2 }
+    .group { fill: none; stroke: var(--store); stroke-width: 1.2; stroke-dasharray: 6 4 }
+    .ln { fill: none; stroke: var(--muted); stroke-width: 1.5 }
+    .ln-a { fill: none; stroke: var(--accent); stroke-width: 1.8 }
+    .ln-s { fill: none; stroke: var(--store); stroke-width: 1.8 }
+    .dash { stroke-dasharray: 5 4 }
+    .ah { fill: var(--muted) }
+    .ah-a { fill: var(--accent) }
+    .ah-s { fill: var(--store) }
+    .dot { fill: var(--muted) }
+    .ring { fill: none; stroke: var(--muted); stroke-width: 1.5 }
+  </style>
+  <rect class="bg" width="880" height="560"/>
+      <defs>
+        <marker id="f2a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-a"/></marker>
+        <marker id="f2n" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah"/></marker>
+        <marker id="f2s" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-s"/></marker>
+      </defs>
+
+      <text class="cap" x="20" y="40">What the user does</text>
+      <text class="cap" x="310" y="40">In memory (app.js)</text>
+      <text class="cap" x="620" y="40">On screen</text>
+
+      <!-- triggers -->
+      <rect class="box" x="20" y="60" width="180" height="40" rx="8"/>
+      <text class="t" x="34" y="85">Click a filter tab</text>
+      <rect class="box" x="20" y="134" width="180" height="40" rx="8"/>
+      <text class="t" x="34" y="159">Type text, press Add</text>
+      <rect class="box" x="20" y="184" width="180" height="40" rx="8"/>
+      <text class="t" x="34" y="209">Tick a checkbox</text>
+      <rect class="box" x="20" y="234" width="180" height="40" rx="8"/>
+      <text class="t" x="34" y="259">Click ✕ on a task</text>
+      <rect class="box" x="20" y="284" width="180" height="40" rx="8"/>
+      <text class="t" x="34" y="309">Click Clear completed</text>
+      <rect class="box" x="20" y="334" width="180" height="40" rx="8"/>
+      <text class="t" x="34" y="359">Click the theme button</text>
+      <rect class="box" x="20" y="384" width="180" height="40" rx="8"/>
+      <text class="t" x="34" y="409">Pick a language</text>
+
+      <!-- trigger -> state -->
+      <path class="ln-a" d="M200 80 H310" marker-end="url(#f2a)"/>
+      <text class="l" x="255" y="74" text-anchor="middle">set filter</text>
+      <path class="ln-a" d="M200 154 H310" marker-end="url(#f2a)"/>
+      <text class="l mono" x="255" y="148" text-anchor="middle">addTodo()</text>
+      <path class="ln-a" d="M200 204 H310" marker-end="url(#f2a)"/>
+      <text class="l mono" x="255" y="198" text-anchor="middle">toggleTodo()</text>
+      <path class="ln-a" d="M200 254 H310" marker-end="url(#f2a)"/>
+      <text class="l mono" x="255" y="248" text-anchor="middle">deleteTodo()</text>
+      <path class="ln-a" d="M200 304 H310" marker-end="url(#f2a)"/>
+      <text class="l" x="255" y="298" text-anchor="middle">drop done tasks</text>
+      <path class="ln-a" d="M200 354 H310" marker-end="url(#f2a)"/>
+      <text class="l" x="255" y="348" text-anchor="middle">flip theme</text>
+      <path class="ln-a" d="M200 404 H310" marker-end="url(#f2a)"/>
+      <text class="l" x="255" y="398" text-anchor="middle">set lang</text>
+
+      <!-- state -->
+      <rect class="box-a" x="310" y="60" width="200" height="40" rx="8"/>
+      <text class="h mono" x="324" y="77">filter</text>
+      <text class="l" x="324" y="92">not saved, resets to All</text>
+
+      <text class="ls" x="300" y="117">these three are saved</text>
+      <rect class="group" x="298" y="124" width="224" height="310" rx="10"/>
+
+      <rect class="box-a" x="310" y="134" width="200" height="190" rx="8"/>
+      <text class="h mono" x="324" y="158">todos</text>
+      <text class="t mono" x="324" y="178" style="font-size:11px">[{ id, text, done }, …]</text>
+      <text class="l" x="324" y="196">one object per task</text>
+      <rect class="box-a" x="310" y="334" width="200" height="40" rx="8"/>
+      <text class="h mono" x="324" y="351">theme</text>
+      <text class="l" x="324" y="366">light or dark</text>
+      <rect class="box-a" x="310" y="384" width="200" height="40" rx="8"/>
+      <text class="h mono" x="324" y="401">lang</text>
+      <text class="l" x="324" y="416">en  fr  pt  es  pl</text>
+
+      <!-- state -> screen -->
+      <path class="ln-a" d="M510 80 H620" marker-end="url(#f2a)"/>
+      <text class="l mono" x="565" y="74" text-anchor="middle">render()</text>
+      <path class="ln-a" d="M510 229 H620" marker-end="url(#f2a)"/>
+      <text class="l mono" x="565" y="223" text-anchor="middle">render()</text>
+      <path class="ln-a" d="M510 354 H620" marker-end="url(#f2a)"/>
+      <text class="l mono" x="565" y="348" text-anchor="middle">applyTheme()</text>
+      <path class="ln-a" d="M510 404 H620" marker-end="url(#f2a)"/>
+      <text class="l mono" x="565" y="398" text-anchor="middle">applyLanguage()</text>
+
+      <!-- screen -->
+      <rect class="box" x="620" y="60" width="240" height="40" rx="8"/>
+      <text class="h" x="634" y="77">Tab highlight</text>
+      <text class="m" x="634" y="92">which tasks are listed</text>
+      <rect class="box" x="620" y="134" width="240" height="190" rx="8"/>
+      <text class="h" x="634" y="158">Task list</text>
+      <text class="t" x="634" y="178">rows rebuilt on every change</text>
+      <text class="t" x="634" y="196">empty-state message</text>
+      <text class="t" x="634" y="214">“N items left” counter</text>
+      <text class="t" x="634" y="232">Clear completed button, shown</text>
+      <text class="t" x="634" y="250">only when a task is done</text>
+      <rect class="box" x="620" y="334" width="240" height="40" rx="8"/>
+      <text class="h" x="634" y="351">Colors and icon</text>
+      <text class="m" x="634" y="366">sets data-theme on the page</text>
+      <rect class="box" x="620" y="384" width="240" height="40" rx="8"/>
+      <text class="h" x="634" y="401">All text</text>
+      <text class="m" x="634" y="416">labels, placeholder, title, list</text>
+
+      <!-- storage -->
+      <path class="ln-s" d="M360 434 V478" marker-end="url(#f2s)"/>
+      <text class="ls" x="352" y="462" text-anchor="end">save() on change</text>
+      <path class="ln-s dash" d="M470 478 V434" marker-end="url(#f2s)"/>
+      <text class="ls" x="478" y="462">load() at startup</text>
+      <rect class="box-s" x="310" y="478" width="200" height="70" rx="8"/>
+      <text class="h" x="324" y="502">localStorage</text>
+      <text class="t mono" x="324" y="520" style="font-size:11px">todo-items, todo-theme,</text>
+      <text class="t mono" x="324" y="536" style="font-size:11px">todo-lang</text>
+
+      <text class="l" x="20" y="490">First visit, nothing saved yet:</text>
+      <text class="l" x="20" y="508">theme follows the system setting</text>
+      <text class="l" x="20" y="526">and language follows the browser.</text>
+  
+</svg>

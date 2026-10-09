@@ -1,0 +1,99 @@
+<svg viewBox="0 0 900 460" width="900" height="460" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">TODO app: file load order</title>
+  <desc id="desc">index.html loads styles.css, then i18n.js, then app.js; app.js uses the TRANSLATIONS global from i18n.js, looks up elements in index.html, and loads from and saves to localStorage.</desc>
+  <style>
+    :root {
+      --panel: #ffffff; --ink: #1c1e26; --muted: #5d6272; --line: #cfd2dc;
+      --accent: #4f46e5; --accent-bg: #eceeff; --store: #15803d; --store-bg: #e8f7ee;
+      --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+      --mono: ui-monospace, Consolas, "Courier New", monospace;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --panel: #1b1d27; --ink: #e7e8ee; --muted: #9a9fb0; --line: #3a3e4d;
+        --accent: #8b93ff; --accent-bg: #23264a; --store: #4ade80; --store-bg: #14301f;
+      }
+    }
+    .bg { fill: var(--panel) }
+    text { font-family: var(--sans) }
+    .h { font-size: 13px; font-weight: 600; fill: var(--ink) }
+    .t { font-size: 12px; fill: var(--ink) }
+    .m { font-size: 12px; fill: var(--muted) }
+    .l { font-size: 11px; fill: var(--muted) }
+    .ls { font-size: 11px; fill: var(--store) }
+    .cap { font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; fill: var(--muted) }
+    .mono { font-family: var(--mono) }
+    .mono.m, .mono.l { font-size: 11px }
+    .box { fill: var(--panel); stroke: var(--line); stroke-width: 1.2 }
+    .box-a { fill: var(--accent-bg); stroke: var(--accent); stroke-width: 1.2 }
+    .box-s { fill: var(--store-bg); stroke: var(--store); stroke-width: 1.2 }
+    .group { fill: none; stroke: var(--store); stroke-width: 1.2; stroke-dasharray: 6 4 }
+    .ln { fill: none; stroke: var(--muted); stroke-width: 1.5 }
+    .ln-a { fill: none; stroke: var(--accent); stroke-width: 1.8 }
+    .ln-s { fill: none; stroke: var(--store); stroke-width: 1.8 }
+    .dash { stroke-dasharray: 5 4 }
+    .ah { fill: var(--muted) }
+    .ah-a { fill: var(--accent) }
+    .ah-s { fill: var(--store) }
+    .dot { fill: var(--muted) }
+    .ring { fill: none; stroke: var(--muted); stroke-width: 1.5 }
+  </style>
+  <rect class="bg" width="900" height="460"/>
+      <defs>
+        <marker id="f1n" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah"/></marker>
+        <marker id="f1s" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-s"/></marker>
+      </defs>
+
+      <rect class="box" x="330" y="30" width="220" height="100" rx="8"/>
+      <text class="h" x="344" y="54">index.html</text>
+      <text class="t" x="344" y="74">form, filters, list, footer</text>
+      <text class="m" x="344" y="94">inline script sets the saved</text>
+      <text class="m" x="344" y="110">theme before first paint</text>
+
+      <rect class="box" x="20" y="210" width="220" height="80" rx="8"/>
+      <text class="h" x="34" y="234">styles.css</text>
+      <text class="t" x="34" y="254">light colors by default</text>
+      <text class="m" x="34" y="272">dark under [data-theme]</text>
+
+      <rect class="box" x="330" y="210" width="220" height="80" rx="8"/>
+      <text class="h" x="344" y="234">i18n.js</text>
+      <text class="t" x="344" y="254">TRANSLATIONS table</text>
+      <text class="m" x="344" y="272">en  fr  pt  es  pl</text>
+
+      <rect class="box-a" x="660" y="190" width="220" height="120" rx="8"/>
+      <text class="h" x="674" y="214">app.js</text>
+      <text class="t" x="674" y="236">state and event handlers</text>
+      <text class="t" x="674" y="254">render() redraws the page</text>
+      <text class="t" x="674" y="272">t() looks up translated text</text>
+
+      <path class="ln" d="M330 80 H130 V210" marker-end="url(#f1n)"/>
+      <text class="l" x="230" y="74" text-anchor="middle">&lt;link&gt;</text>
+
+      <path class="ln" d="M440 130 V210" marker-end="url(#f1n)"/>
+      <text class="l" x="450" y="176">&lt;script&gt; 1st</text>
+
+      <path class="ln" d="M550 70 H770 V190" marker-end="url(#f1n)"/>
+      <text class="l" x="660" y="64" text-anchor="middle">&lt;script&gt; 2nd, runs last</text>
+
+      <path class="ln" d="M550 250 H660" marker-end="url(#f1n)"/>
+      <text class="l" x="605" y="244" text-anchor="middle">TRANSLATIONS</text>
+
+      <path class="ln dash" d="M730 190 V160 H500 V130" marker-end="url(#f1n)"/>
+      <text class="l" x="615" y="154" text-anchor="middle">finds elements by id and data-*</text>
+
+      <path class="ln-s" d="M700 310 V360" marker-end="url(#f1s)"/>
+      <text class="ls" x="692" y="340" text-anchor="end">save() on change</text>
+      <path class="ln-s dash" d="M770 360 V310" marker-end="url(#f1s)"/>
+      <text class="ls" x="778" y="340">load() at startup</text>
+
+      <rect class="box-s" x="560" y="360" width="320" height="76" rx="8"/>
+      <text class="h" x="574" y="384">localStorage</text>
+      <text class="t mono" x="574" y="402" style="font-size:11px">todo-items · todo-theme · todo-lang</text>
+      <text class="m" x="574" y="420" style="font-size:11px">index.html also reads todo-theme</text>
+
+      <path class="ln" d="M20 392 H56" marker-end="url(#f1n)"/>
+      <text class="l" x="66" y="396">loads, calls or writes</text>
+      <path class="ln dash" d="M20 416 H56" marker-end="url(#f1n)"/>
+      <text class="l" x="66" y="420">looks up or reads back</text>
+  
+</svg>
