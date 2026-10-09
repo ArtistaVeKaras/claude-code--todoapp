@@ -28,6 +28,8 @@ For a detailed description of the code, see the [developer documentation](docs/D
 
 The whole app runs in your browser. Whatever opens it (the file on your disk, a local server, or a hosting site) only delivers the four files. Tasks, theme and language are saved in the browser's localStorage, so there is no backend server or database.
 
+For the file load order, the click-to-storage data flow and the states a task moves through, open [docs/diagrams/todo-app-anatomy.html](docs/diagrams/todo-app-anatomy.html) in a browser.
+
 ## Run it from a terminal
 
 Clone the repository:

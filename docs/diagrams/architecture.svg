@@ -57,7 +57,7 @@
   <text class="m" x="520" y="125" font-size="12">light and dark colors</text>
   <rect class="box" x="320" y="150" width="174" height="56" rx="8"/>
   <text class="t" x="334" y="174" font-size="13" font-weight="600">i18n.js</text>
-  <text class="m" x="334" y="193" font-size="12">EN / FR / PT text</text>
+  <text class="m" x="334" y="193" font-size="12">EN FR PT ES PL text</text>
   <rect class="acc" x="506" y="150" width="174" height="56" rx="8"/>
   <text class="t" x="520" y="174" font-size="13" font-weight="600">app.js</text>
   <text class="m" x="520" y="193" font-size="12">logic: add, tick, delete</text>
