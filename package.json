@@ -1,0 +1,12 @@
+{
+  "name": "todo-app",
+  "private": true,
+  "description": "TODO app with optional accounts. No dependencies: the server uses only built-in Node modules.",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node server/server.js",
+    "test": "node --test"
+  }
+}

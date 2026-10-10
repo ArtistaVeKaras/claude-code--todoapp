@@ -1,3 +1,6 @@
 # Claude Code: screenshots pasted into chat and Playwright MCP snapshots/logs
 .claude/claude-code-chat-images/
 .playwright-mcp/
+
+# Local database created by the server (npm start)
+data/
