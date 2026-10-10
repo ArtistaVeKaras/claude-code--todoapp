@@ -1,6 +1,6 @@
 # TODO App
 
-A simple TODO web app built with plain HTML, CSS and JavaScript. There is nothing to install and no build step: clone the repo and open it in a browser.
+A simple TODO web app built with plain HTML, CSS and JavaScript. There is nothing to install and no build step: clone the repo and open it in a browser, or run the small built-in server to get user accounts.
 
 ## Features
 
@@ -9,6 +9,7 @@ A simple TODO web app built with plain HTML, CSS and JavaScript. There is nothin
 - Dark and light theme toggle (🌙 / ☀️ button)
 - Language switcher: English, French, Portuguese, Spanish and Polish
 - Tasks, theme and language are saved in your browser (localStorage), so they are still there after a reload
+- Optional accounts: run `npm start` and each person signs in to their own task list, stored on the server, with email confirmation and password reset
 
 ## Project structure
 
@@ -17,6 +18,8 @@ index.html   Page layout
 styles.css   Styles for the light and dark themes
 i18n.js      Translations (English, French, Portuguese, Spanish, Polish)
 app.js       App logic
+server/      Optional server for accounts (built-in Node modules only)
+tests/       Automated tests (npm test)
 docs/        Developer documentation and architecture diagrams
 ```
 
@@ -26,7 +29,9 @@ For a detailed description of the code, see the [developer documentation](docs/D
 
 ![TODO app architecture](docs/diagrams/architecture.svg)
 
-The whole app runs in your browser. Whatever opens it (the file on your disk, a local server, or a hosting site) only delivers the four files. Tasks, theme and language are saved in the browser's localStorage, so there is no backend server or database.
+Opened as a file or from any static server, the whole app runs in your browser. Whatever opens it (the file on your disk, a local server, or a hosting site) only delivers the four files, and tasks, theme and language are saved in the browser's localStorage. The diagrams below show this mode.
+
+Run with `npm start` instead, and the page notices the server and switches to account mode: people sign in, and their tasks are kept on the server. See [Accounts](#accounts).
 
 ### App anatomy
 
@@ -71,6 +76,26 @@ npx serve .
 ```
 
 Then open http://localhost:8000 (or the address `npx serve` prints) in your browser. Press `Ctrl+C` in the terminal to stop the server.
+
+## Accounts
+
+To give each person their own task list, start the built-in server instead. It needs [Node.js](https://nodejs.org) 22.13 or newer and nothing else; there are no packages to install.
+
+```bash
+npm start
+```
+
+Open http://localhost:3000, choose **No account yet? Create one**, and sign in. In development, confirmation and password-reset emails are printed in the terminal; open the link from there.
+
+Tasks are stored in `data/todo.db` (a SQLite file, not committed). For running it on the internet, settings such as `APP_URL` and `NODE_ENV=production`, and how the security works, see [Accounts and the server](docs/DEVELOPER.md#accounts-and-the-server).
+
+## Tests
+
+```bash
+npm test
+```
+
+This runs the server, account and translation tests with Node's built-in test runner.
 
 ## Run it from Claude Code
 
