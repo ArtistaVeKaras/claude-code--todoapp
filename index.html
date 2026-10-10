@@ -3,15 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TODO App</title>
-  <link rel="stylesheet" href="styles.css">
+  <meta name="color-scheme" content="light dark">
   <script>
-    // Apply the saved theme before the page paints to avoid a flash.
+    // Apply a saved light/dark override before the page paints to avoid a flash.
+    // With nothing saved, the page follows the system color scheme.
     try {
       var savedTheme = JSON.parse(localStorage.getItem('todo-theme'));
-      if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
+      if (savedTheme === 'light' || savedTheme === 'dark') document.querySelector('meta[name="color-scheme"]').content = savedTheme;
     } catch (e) {}
   </script>
+  <title>TODO App</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <main class="app">
@@ -26,7 +28,10 @@
           <option value="es">Español</option>
           <option value="pl">Polski</option>
         </select>
-        <button id="theme-toggle" type="button" class="icon-button"></button>
+        <button id="theme-toggle" type="button" class="icon-button">
+          <span class="theme-to-dark"><span aria-hidden="true">🌙</span><span class="visually-hidden" data-i18n="darkMode">Switch to dark mode</span></span>
+          <span class="theme-to-light"><span aria-hidden="true">☀️</span><span class="visually-hidden" data-i18n="lightMode">Switch to light mode</span></span>
+        </button>
       </div>
     </header>
 
@@ -47,15 +52,15 @@
       <form id="auth-form" class="auth-form">
         <div id="auth-email-field" class="field">
           <label for="auth-email" data-i18n="email">Email</label>
-          <input id="auth-email" type="email" autocomplete="username" maxlength="254" required>
+          <input id="auth-email" name="email" type="email" autocomplete="username" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="254" required>
         </div>
         <div id="auth-password-field" class="field">
           <label id="auth-password-label" for="auth-password" data-i18n="password">Password</label>
-          <input id="auth-password" type="password" autocomplete="current-password" maxlength="128" required>
           <small id="auth-password-hint" class="hint" data-i18n="passwordHint" hidden>At least 8 characters.</small>
+          <input id="auth-password" name="password" type="password" autocomplete="current-password" maxlength="128" required>
         </div>
         <label id="auth-remember-field" class="checkbox">
-          <input id="auth-remember" type="checkbox">
+          <input id="auth-remember" name="remember" type="checkbox">
           <span data-i18n="rememberMe">Keep me signed in</span>
         </label>
         <p id="auth-error" class="form-error" role="alert" hidden></p>
@@ -70,17 +75,17 @@
     <div id="todo-view" hidden>
       <form id="todo-form" class="todo-form">
         <label class="visually-hidden" for="todo-input" data-i18n="placeholder">What needs to be done?</label>
-        <input id="todo-input" type="text" autocomplete="off" maxlength="200" data-i18n-placeholder="placeholder" placeholder="What needs to be done?">
+        <input id="todo-input" name="text" type="text" autocomplete="off" enterkeyhint="done" maxlength="200" data-i18n-placeholder="placeholder" placeholder="What needs to be done?">
         <button type="submit" data-i18n="add">Add</button>
       </form>
 
       <nav class="filters" aria-label="Filters">
-        <button type="button" data-filter="all" data-i18n="all" class="active">All</button>
-        <button type="button" data-filter="active" data-i18n="active">Active</button>
-        <button type="button" data-filter="completed" data-i18n="completed">Completed</button>
+        <button type="button" data-filter="all" data-i18n="all" aria-pressed="true">All</button>
+        <button type="button" data-filter="active" data-i18n="active" aria-pressed="false">Active</button>
+        <button type="button" data-filter="completed" data-i18n="completed" aria-pressed="false">Completed</button>
       </nav>
 
-      <ul id="todo-list" class="todo-list"></ul>
+      <ul id="todo-list" class="todo-list" role="list"></ul>
       <p id="empty-message" class="empty" data-i18n="empty">Nothing to do. Enjoy your day!</p>
 
       <footer class="app-footer">

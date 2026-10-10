@@ -4,7 +4,7 @@
 //   script never sees.
 // - local mode: opened as a file or from a plain static server. No sign-in; tasks are
 //   saved in this browser's localStorage, as before.
-// Theme and language are always saved in localStorage.
+// The light/dark override and language are always saved in localStorage.
 // Requires i18n.js to be loaded first (it defines TRANSLATIONS).
 
 const STORAGE_KEYS = { todos: 'todo-items', theme: 'todo-theme', lang: 'todo-lang' };
@@ -48,7 +48,6 @@ let user = null; // signed-in user in account mode: { id, email, emailVerified }
 let todos = [];
 let filter = 'all';
 let lang = load(STORAGE_KEYS.lang, null) || detectLanguage();
-let theme = load(STORAGE_KEYS.theme, null) || detectTheme();
 let authMode = 'signin'; // 'signin' | 'signup' | 'forgot' | 'reset'
 let resetToken = null;
 let statusKey = null; // translation key of the message shown in the status line
@@ -142,7 +141,6 @@ function applyLanguage() {
     el.placeholder = t(el.dataset.i18nPlaceholder);
   });
   document.title = t('title');
-  applyTheme();
   renderAuth();
   renderStatus();
   render();
@@ -150,17 +148,32 @@ function applyLanguage() {
 
 // ---------- theme ----------
 
-function detectTheme() {
-  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+// The page follows the system color scheme unless the user picked the other one. The choice
+// lives in <meta name="color-scheme"> ('light dark' = follow the system); the CSS reads it from
+// there, including which of the toggle's two icons and labels is shown.
+const colorSchemeMeta = document.querySelector('meta[name="color-scheme"]');
+const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
+
+function applyTheme(override) {
+  colorSchemeMeta.content = override === 'light' || override === 'dark' ? override : 'light dark';
 }
 
-function applyTheme() {
-  document.documentElement.setAttribute('data-theme', theme);
-  const isDark = theme === 'dark';
-  els.themeToggle.textContent = isDark ? '☀️' : '🌙';
-  const label = isDark ? t('lightMode') : t('darkMode');
-  els.themeToggle.setAttribute('aria-label', label);
-  els.themeToggle.title = label;
+function toggleTheme() {
+  const system = systemDark.matches ? 'dark' : 'light';
+  const current = colorSchemeMeta.content === 'light dark' ? system : colorSchemeMeta.content;
+  const target = current === 'dark' ? 'light' : 'dark';
+  // Picking the system's own scheme undoes the override, so the page follows the system again.
+  if (target === system) {
+    try {
+      localStorage.removeItem(STORAGE_KEYS.theme);
+    } catch (e) {
+      // Storage may be unavailable; the scheme still changes for this visit.
+    }
+    applyTheme(null);
+  } else {
+    save(STORAGE_KEYS.theme, target);
+    applyTheme(target);
+  }
 }
 
 // ---------- status line ----------
@@ -246,26 +259,39 @@ function render() {
   );
 
   els.list.innerHTML = '';
-  visible.forEach((item) => {
+  visible.forEach((item, index) => {
     const li = document.createElement('li');
     li.className = 'todo-item' + (item.done ? ' done' : '');
+
+    // Each control is named after its task ("Buy milk", "Delete Buy milk") so screen reader
+    // users can tell the rows apart.
+    const textId = `todo-text-${index}`;
+    const deleteId = `todo-delete-${index}`;
 
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     checkbox.checked = item.done;
-    checkbox.setAttribute('aria-label', t('toggleTask'));
+    checkbox.setAttribute('aria-labelledby', textId);
     checkbox.addEventListener('change', () => run(() => toggleTodo(item.id)).then(render));
 
     const span = document.createElement('span');
+    span.id = textId;
     span.className = 'todo-text';
     span.textContent = item.text;
 
     const del = document.createElement('button');
     del.type = 'button';
+    del.id = deleteId;
     del.className = 'delete-button';
-    del.textContent = '✕';
-    del.setAttribute('aria-label', t('delete'));
     del.title = t('delete');
+    del.setAttribute('aria-labelledby', `${deleteId} ${textId}`);
+    const icon = document.createElement('span');
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = '✕';
+    const label = document.createElement('span');
+    label.className = 'visually-hidden';
+    label.textContent = t('delete');
+    del.append(icon, label);
     del.addEventListener('click', () => run(() => deleteTodo(item.id)));
 
     li.append(checkbox, span, del);
@@ -275,7 +301,7 @@ function render() {
   els.empty.hidden = visible.length > 0;
   els.itemsLeft.textContent = t('itemsLeft')(todos.filter((item) => !item.done).length);
   els.clearCompleted.hidden = !todos.some((item) => item.done);
-  els.filters.forEach((btn) => btn.classList.toggle('active', btn.dataset.filter === filter));
+  els.filters.forEach((btn) => btn.setAttribute('aria-pressed', String(btn.dataset.filter === filter)));
 }
 
 // ---------- account: screens ----------
@@ -291,6 +317,8 @@ function setAuthMode(next) {
   authMode = next;
   els.authError.hidden = true;
   els.authPassword.value = '';
+  // Start the new screen without leftover "invalid" marks from the previous one.
+  [els.authEmail, els.authPassword].forEach((input) => input.removeAttribute('aria-invalid'));
   renderAuth();
 }
 
@@ -308,6 +336,8 @@ function renderAuth() {
   els.authPassword.autocomplete = choosingPassword ? 'new-password' : 'current-password';
   els.authPassword.minLength = choosingPassword ? 8 : 0;
   els.authPasswordHint.hidden = !choosingPassword;
+  if (choosingPassword) els.authPassword.setAttribute('aria-describedby', els.authPasswordHint.id);
+  else els.authPassword.removeAttribute('aria-describedby');
   els.authRememberField.hidden = authMode === 'forgot' || authMode === 'reset';
   els.authForgot.hidden = authMode !== 'signin';
   if (!els.authError.hidden && els.authError.dataset.key) els.authError.textContent = t(els.authError.dataset.key);
@@ -488,11 +518,31 @@ els.filters.forEach((btn) =>
 
 els.clearCompleted.addEventListener('click', () => run(clearCompletedTodos));
 
-els.themeToggle.addEventListener('click', () => {
-  theme = theme === 'dark' ? 'light' : 'dark';
-  save(STORAGE_KEYS.theme, theme);
-  applyTheme();
+els.themeToggle.addEventListener('click', toggleTheme);
+
+// Keep the scheme in step when it is changed in another tab.
+window.addEventListener('storage', (event) => {
+  if (event.key === STORAGE_KEYS.theme) applyTheme(load(STORAGE_KEYS.theme, null));
 });
+
+// Mark auth fields invalid for screen readers at the same moment CSS shows them as invalid
+// (:user-invalid, i.e. only after the user has left the field or tried to submit).
+function syncInvalid(event) {
+  const input = event.target;
+  if (!input.matches || !input.matches('#auth-form input:not([type="checkbox"])')) return;
+  if (event.type === 'input' && input.getAttribute('aria-invalid') !== 'true') return;
+  if (input.matches(':user-invalid')) input.setAttribute('aria-invalid', 'true');
+  else input.removeAttribute('aria-invalid');
+}
+if (CSS.supports('selector(:user-invalid)')) {
+  els.authForm.addEventListener('blur', syncInvalid, true);
+  els.authForm.addEventListener('input', syncInvalid);
+  // A submit attempt marks every invalid field at once; 'invalid' does not bubble, so capture it.
+  els.authForm.addEventListener('invalid', (event) => event.target.setAttribute('aria-invalid', 'true'), true);
+  els.authForm.addEventListener('reset', () => {
+    els.authForm.querySelectorAll('[aria-invalid]').forEach((input) => input.removeAttribute('aria-invalid'));
+  });
+}
 
 els.languageSelect.addEventListener('change', () => {
   lang = els.languageSelect.value;

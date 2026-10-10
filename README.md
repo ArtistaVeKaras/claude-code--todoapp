@@ -6,7 +6,7 @@ A simple TODO web app built with plain HTML, CSS and JavaScript. There is nothin
 
 - Add, complete and delete tasks
 - Filter by All, Active or Completed, and clear completed tasks
-- Dark and light theme toggle (🌙 / ☀️ button)
+- Follows your system light or dark setting, with a 🌙 / ☀️ button to switch for this site (pressing it again goes back to following the system)
 - Language switcher: English, French, Portuguese, Spanish and Polish
 - Tasks, theme and language are saved in your browser (localStorage), so they are still there after a reload
 - Optional accounts: run `npm start` and each person signs in to their own task list, stored on the server, with email confirmation and password reset

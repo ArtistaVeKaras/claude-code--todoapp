@@ -13,7 +13,6 @@ const TRANSLATIONS = {
     empty: 'Nothing to do. Enjoy your day!',
     clearCompleted: 'Clear completed',
     delete: 'Delete',
-    toggleTask: 'Mark as done',
     itemsLeft: (n) => (n === 1 ? '1 item left' : `${n} items left`),
     darkMode: 'Switch to dark mode',
     lightMode: 'Switch to light mode',
@@ -62,7 +61,6 @@ const TRANSLATIONS = {
     empty: 'Rien à faire. Profitez de votre journée !',
     clearCompleted: 'Effacer les terminées',
     delete: 'Supprimer',
-    toggleTask: 'Marquer comme terminée',
     itemsLeft: (n) => (n <= 1 ? `${n} tâche restante` : `${n} tâches restantes`),
     darkMode: 'Passer en mode sombre',
     lightMode: 'Passer en mode clair',
@@ -111,7 +109,6 @@ const TRANSLATIONS = {
     empty: 'Nada para fazer. Aproveite o seu dia!',
     clearCompleted: 'Limpar concluídas',
     delete: 'Excluir',
-    toggleTask: 'Marcar como concluída',
     itemsLeft: (n) => (n === 1 ? '1 tarefa restante' : `${n} tarefas restantes`),
     darkMode: 'Mudar para o modo escuro',
     lightMode: 'Mudar para o modo claro',
@@ -160,7 +157,6 @@ const TRANSLATIONS = {
     empty: 'Nada que hacer. ¡Disfruta tu día!',
     clearCompleted: 'Borrar completadas',
     delete: 'Eliminar',
-    toggleTask: 'Marcar como completada',
     itemsLeft: (n) => (n === 1 ? '1 tarea pendiente' : `${n} tareas pendientes`),
     darkMode: 'Cambiar al modo oscuro',
     lightMode: 'Cambiar al modo claro',
@@ -209,7 +205,6 @@ const TRANSLATIONS = {
     empty: 'Nic do zrobienia. Miłego dnia!',
     clearCompleted: 'Usuń ukończone',
     delete: 'Usuń',
-    toggleTask: 'Oznacz jako ukończone',
     itemsLeft: (n) => {
       if (n === 1) return '1 zadanie do zrobienia';
       const lastTwo = n % 100;
