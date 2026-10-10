@@ -1,25 +1,120 @@
+/* ---------- color scheme ----------
+   The page follows the system light/dark setting. The toggle can override it by setting
+   <meta name="color-scheme"> to "light" or "dark"; the rules below read that override, so
+   the CSS still works (following the system) if the script never runs. */
+
 :root {
-  --bg: #f4f5f7;
-  --surface: #ffffff;
-  --text: #1f2328;
-  --muted: #6b7280;
-  --border: #e3e5e8;
-  --accent: #4f46e5;
-  --accent-text: #ffffff;
-  --danger: #dc2626;
-  --shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --bg-light: #f4f5f7;
+  --surface-light: #ffffff;
+  --text-light: #1f2328;
+  --muted-light: #6b7280;
+  --border-light: #e3e5e8;
+  --accent-light: #4f46e5;
+  --accent-text-light: #ffffff;
+  --danger-light: #dc2626;
+  --shadow-light: 0 8px 24px rgba(15, 23, 42, 0.08);
+
+  --bg-dark: #0f1115;
+  --surface-dark: #1a1d23;
+  --text-dark: #e6e8eb;
+  --muted-dark: #9aa1ab;
+  --border-dark: #2c3038;
+  --accent-dark: #818cf8;
+  --accent-text-dark: #0f1115;
+  --danger-dark: #f87171;
+  --shadow-dark: 0 8px 24px rgba(0, 0, 0, 0.4);
+
+  --bg: light-dark(var(--bg-light), var(--bg-dark));
+  --surface: light-dark(var(--surface-light), var(--surface-dark));
+  --text: light-dark(var(--text-light), var(--text-dark));
+  --muted: light-dark(var(--muted-light), var(--muted-dark));
+  --border: light-dark(var(--border-light), var(--border-dark));
+  --accent: light-dark(var(--accent-light), var(--accent-dark));
+  --accent-text: light-dark(var(--accent-text-light), var(--accent-text-dark));
+  --danger: light-dark(var(--danger-light), var(--danger-dark));
+  /* light-dark() only takes colors, so the shadow is switched with the scheme below. */
+  --shadow: var(--shadow-light);
+
+  color-scheme: light dark;
+  accent-color: var(--accent);
 }
 
-[data-theme="dark"] {
-  --bg: #0f1115;
-  --surface: #1a1d23;
-  --text: #e6e8eb;
-  --muted: #9aa1ab;
-  --border: #2c3038;
-  --accent: #818cf8;
-  --accent-text: #0f1115;
-  --danger: #f87171;
-  --shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+:root:has(> head > meta[name="color-scheme"][content="light"]) {
+  color-scheme: light;
+}
+
+:root:has(> head > meta[name="color-scheme"][content="dark"]) {
+  color-scheme: dark;
+}
+
+/* Things that differ in dark mode but are not colors: the shadow, and which of the toggle's
+   two options is shown (the one that switches to the other scheme). */
+.theme-to-light {
+  display: none;
+}
+
+:root:has(> head > meta[name="color-scheme"][content="dark"]) {
+  --shadow: var(--shadow-dark);
+}
+
+:root:has(> head > meta[name="color-scheme"][content="dark"]) .theme-to-dark {
+  display: none;
+}
+
+:root:has(> head > meta[name="color-scheme"][content="dark"]) .theme-to-light {
+  display: inline;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(:has(> head > meta[name="color-scheme"][content="light"])) {
+    --shadow: var(--shadow-dark);
+  }
+
+  :root:not(:has(> head > meta[name="color-scheme"][content="light"])) .theme-to-dark {
+    display: none;
+  }
+
+  :root:not(:has(> head > meta[name="color-scheme"][content="light"])) .theme-to-light {
+    display: inline;
+  }
+}
+
+/* Fallback for browsers without light-dark(): pick the token set from the same conditions. */
+@supports not (color: light-dark(white, black)) {
+  :root {
+    --bg: var(--bg-light);
+    --surface: var(--surface-light);
+    --text: var(--text-light);
+    --muted: var(--muted-light);
+    --border: var(--border-light);
+    --accent: var(--accent-light);
+    --accent-text: var(--accent-text-light);
+    --danger: var(--danger-light);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not(:has(> head > meta[name="color-scheme"][content="light"])) {
+      --bg: var(--bg-dark);
+      --surface: var(--surface-dark);
+      --text: var(--text-dark);
+      --muted: var(--muted-dark);
+      --border: var(--border-dark);
+      --accent: var(--accent-dark);
+      --accent-text: var(--accent-text-dark);
+      --danger: var(--danger-dark);
+    }
+  }
+
+  :root:has(> head > meta[name="color-scheme"][content="dark"]) {
+    --bg: var(--bg-dark);
+    --surface: var(--surface-dark);
+    --text: var(--text-dark);
+    --muted: var(--muted-dark);
+    --border: var(--border-dark);
+    --accent: var(--accent-dark);
+    --accent-text: var(--accent-text-dark);
+    --danger: var(--danger-dark);
+  }
 }
 
 * {
@@ -64,6 +159,7 @@ select {
 h1 {
   margin: 0;
   font-size: 1.6rem;
+  text-wrap: balance;
 }
 
 .controls {
@@ -102,7 +198,7 @@ select,
   border-radius: 8px;
 }
 
-.todo-form input:focus,
+.todo-form input:focus-visible,
 select:focus-visible,
 button:focus-visible {
   outline: 2px solid var(--accent);
@@ -134,7 +230,7 @@ button:focus-visible {
   cursor: pointer;
 }
 
-.filters button.active {
+.filters button[aria-pressed="true"] {
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -156,13 +252,13 @@ button:focus-visible {
 .todo-item input[type="checkbox"] {
   width: 18px;
   height: 18px;
-  accent-color: var(--accent);
   cursor: pointer;
 }
 
 .todo-text {
   flex: 1;
   overflow-wrap: anywhere;
+  text-wrap: pretty;
 }
 
 .todo-item.done .todo-text {
@@ -171,16 +267,24 @@ button:focus-visible {
 }
 
 .delete-button {
+  min-inline-size: 24px;
+  min-block-size: 24px;
   background: none;
   border: none;
+  border-radius: 6px;
   color: var(--muted);
   cursor: pointer;
-  opacity: 0.6;
 }
 
 .delete-button:hover {
   color: var(--danger);
-  opacity: 1;
+}
+
+@media (pointer: coarse) {
+  .delete-button {
+    min-inline-size: 44px;
+    min-block-size: 44px;
+  }
 }
 
 .empty {
@@ -291,9 +395,24 @@ button:focus-visible {
   border-radius: 8px;
 }
 
-.field input:focus {
+.field input:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
+}
+
+/* Show a field as invalid only once the user has left it or tried to submit, with a text
+   marker as well as color. */
+.field input:user-invalid {
+  border-color: var(--danger);
+}
+
+.field:has(input:user-invalid) label::after {
+  content: " ⚠" / "";
+  color: var(--danger);
+}
+
+.field:has(input:user-invalid) .hint {
+  color: var(--danger);
 }
 
 .hint {
@@ -312,7 +431,6 @@ button:focus-visible {
 .checkbox input {
   width: 18px;
   height: 18px;
-  accent-color: var(--accent);
 }
 
 .form-error {
@@ -347,13 +465,16 @@ button:focus-visible {
   display: none !important;
 }
 
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
+.visually-hidden:where(:not(:focus-within, :active)) {
+  position: absolute !important;
+  clip-path: inset(50%) !important;
+  overflow: hidden !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  white-space: nowrap !important;
 }
 
 @media (max-width: 600px) {
