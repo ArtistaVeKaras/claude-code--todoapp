@@ -14,6 +14,7 @@ const els = {
   input: document.getElementById('todo-input'),
   list: document.getElementById('todo-list'),
   empty: document.getElementById('empty-message'),
+  announcer: document.getElementById('announcer'),
   itemsLeft: document.getElementById('items-left'),
   clearCompleted: document.getElementById('clear-completed'),
   filters: document.querySelectorAll('[data-filter]'),
@@ -140,6 +141,9 @@ function applyLanguage() {
   document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
     el.placeholder = t(el.dataset.i18nPlaceholder);
   });
+  document.querySelectorAll('[data-i18n-aria-label]').forEach((el) => {
+    el.setAttribute('aria-label', t(el.dataset.i18nAriaLabel));
+  });
   document.title = t('title');
   renderAuth();
   renderStatus();
@@ -194,11 +198,28 @@ function renderStatus() {
   els.status.textContent = statusKey ? t(statusKey) : '';
 }
 
+// Reads a short confirmation ("Task added.") to screen reader users through a hidden live
+// region. It is emptied first so the same message is announced again when repeated.
+function announce(key) {
+  els.announcer.textContent = '';
+  setTimeout(() => {
+    els.announcer.textContent = t(key);
+  }, 50);
+}
+
+// When the focused control has just been hidden (a screen changed, or the button removed
+// itself), move focus to a sensible place instead of leaving it on the page body.
+function rescueFocus(target) {
+  const active = document.activeElement;
+  if (!active || active === document.body || active.closest('[hidden]')) target.focus();
+}
+
 // Shows an API error. A 401 means the session ended, so go back to the sign-in screen.
 function handleApiError(error) {
   if (error.status === 401 && mode === 'account') {
     signedOut();
     showStatus('sessionExpired', 'error');
+    rescueFocus(els.authEmail);
     return;
   }
   showStatus(errorKey(error), 'error');
@@ -215,6 +236,7 @@ async function addTodo(text) {
     save(STORAGE_KEYS.todos, todos);
   }
   render();
+  announce('taskAdded');
 }
 
 async function toggleTodo(id) {
@@ -228,6 +250,7 @@ async function toggleTodo(id) {
     save(STORAGE_KEYS.todos, todos);
   }
   render();
+  announce(todo.done ? 'taskCompleted' : 'taskReopened');
 }
 
 async function deleteTodo(id) {
@@ -237,6 +260,7 @@ async function deleteTodo(id) {
   todos = todos.filter((item) => item.id !== id);
   if (mode === 'local') save(STORAGE_KEYS.todos, todos);
   render();
+  announce('taskDeleted');
 }
 
 async function clearCompletedTodos() {
@@ -246,6 +270,7 @@ async function clearCompletedTodos() {
   todos = todos.filter((item) => !item.done);
   if (mode === 'local') save(STORAGE_KEYS.todos, todos);
   render();
+  announce('completedCleared');
 }
 
 // Runs a todo action, showing any server error instead of failing silently.
@@ -258,10 +283,21 @@ function render() {
     filter === 'active' ? !item.done : filter === 'completed' ? item.done : true
   );
 
+  // The list is rebuilt from scratch, which would drop keyboard focus on the page body.
+  // Remember which control in which row had focus so it can be put back afterwards.
+  const active = document.activeElement;
+  const focusedRow = els.list.contains(active) ? active.closest('li') : null;
+  const focused = focusedRow && {
+    id: focusedRow.dataset.id,
+    control: active.dataset.control,
+    index: [...els.list.children].indexOf(focusedRow),
+  };
+
   els.list.innerHTML = '';
   visible.forEach((item, index) => {
     const li = document.createElement('li');
     li.className = 'todo-item' + (item.done ? ' done' : '');
+    li.dataset.id = item.id;
 
     // Each control is named after its task ("Buy milk", "Delete Buy milk") so screen reader
     // users can tell the rows apart.
@@ -271,6 +307,7 @@ function render() {
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     checkbox.checked = item.done;
+    checkbox.dataset.control = 'toggle';
     checkbox.setAttribute('aria-labelledby', textId);
     checkbox.addEventListener('change', () => run(() => toggleTodo(item.id)).then(render));
 
@@ -283,6 +320,7 @@ function render() {
     del.type = 'button';
     del.id = deleteId;
     del.className = 'delete-button';
+    del.dataset.control = 'delete';
     del.title = t('delete');
     del.setAttribute('aria-labelledby', `${deleteId} ${textId}`);
     const icon = document.createElement('span');
@@ -297,6 +335,14 @@ function render() {
     li.append(checkbox, span, del);
     els.list.appendChild(li);
   });
+
+  if (focused) {
+    // Same row if it is still shown, else the row that took its place, else the task input.
+    const rows = els.list.children;
+    const row = els.list.querySelector(`li[data-id="${CSS.escape(focused.id)}"]`) || rows[Math.min(focused.index, rows.length - 1)];
+    const target = row && row.querySelector(`[data-control="${focused.control}"]`);
+    (target || els.input).focus();
+  }
 
   els.empty.hidden = visible.length > 0;
   els.itemsLeft.textContent = t('itemsLeft')(todos.filter((item) => !item.done).length);
@@ -397,12 +443,14 @@ async function submitAuth() {
     const { user: me } = await api('POST', '/api/auth/login', { email, password, remember });
     clearStatus();
     await signedIn(me);
+    rescueFocus(els.input);
   } else if (authMode === 'signup') {
     await api('POST', '/api/auth/signup', { email, password });
     // The server answers the same way for new and taken emails, so sign in next.
     const { user: me } = await api('POST', '/api/auth/login', { email, password, remember });
     clearStatus();
     await signedIn(me);
+    rescueFocus(els.input);
   } else if (authMode === 'forgot') {
     await api('POST', '/api/auth/password/forgot', { email });
     setAuthMode('signin');
@@ -411,6 +459,7 @@ async function submitAuth() {
     const { user: me } = await api('POST', '/api/auth/password/reset', { token: resetToken, password });
     await signedIn(me);
     showStatus('passwordChanged');
+    rescueFocus(els.input);
   }
 }
 
@@ -422,6 +471,7 @@ async function signOut() {
   }
   clearStatus();
   signedOut();
+  rescueFocus(els.authEmail);
 }
 
 async function resendVerification() {
@@ -516,7 +566,8 @@ els.filters.forEach((btn) =>
   })
 );
 
-els.clearCompleted.addEventListener('click', () => run(clearCompletedTodos));
+// The button hides itself once nothing is completed, so focus moves to the task input.
+els.clearCompleted.addEventListener('click', () => run(clearCompletedTodos).then(() => rescueFocus(els.input)));
 
 els.themeToggle.addEventListener('click', toggleTheme);
 
@@ -566,14 +617,17 @@ els.authForm.addEventListener('submit', async (event) => {
   }
 });
 
+// Switching screens starts the user at the new screen's first field.
 els.authSwitch.addEventListener('click', () => {
   clearStatus();
   setAuthMode(AUTH_TEXT[authMode].switchTo);
+  els.authEmail.focus();
 });
 
 els.authForgot.addEventListener('click', () => {
   clearStatus();
   setAuthMode('forgot');
+  els.authEmail.focus();
 });
 
 els.signOut.addEventListener('click', signOut);
