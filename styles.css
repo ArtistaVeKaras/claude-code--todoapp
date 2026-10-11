@@ -7,11 +7,13 @@
   --bg-light: #f4f5f7;
   --surface-light: #ffffff;
   --text-light: #1f2328;
-  --muted-light: #6b7280;
+  --muted-light: #5f6672;
   --border-light: #e3e5e8;
+  /* Outline of form controls: at least 3:1 against the surface (WCAG 1.4.11). */
+  --control-border-light: #858c97;
   --accent-light: #4f46e5;
   --accent-text-light: #ffffff;
-  --danger-light: #dc2626;
+  --danger-light: #b91c1c;
   --shadow-light: 0 8px 24px rgba(15, 23, 42, 0.08);
 
   --bg-dark: #0f1115;
@@ -19,6 +21,7 @@
   --text-dark: #e6e8eb;
   --muted-dark: #9aa1ab;
   --border-dark: #2c3038;
+  --control-border-dark: #6b7280;
   --accent-dark: #818cf8;
   --accent-text-dark: #0f1115;
   --danger-dark: #f87171;
@@ -29,6 +32,7 @@
   --text: light-dark(var(--text-light), var(--text-dark));
   --muted: light-dark(var(--muted-light), var(--muted-dark));
   --border: light-dark(var(--border-light), var(--border-dark));
+  --control-border: light-dark(var(--control-border-light), var(--control-border-dark));
   --accent: light-dark(var(--accent-light), var(--accent-dark));
   --accent-text: light-dark(var(--accent-text-light), var(--accent-text-dark));
   --danger: light-dark(var(--danger-light), var(--danger-dark));
@@ -87,6 +91,7 @@
     --text: var(--text-light);
     --muted: var(--muted-light);
     --border: var(--border-light);
+    --control-border: var(--control-border-light);
     --accent: var(--accent-light);
     --accent-text: var(--accent-text-light);
     --danger: var(--danger-light);
@@ -99,6 +104,8 @@
       --text: var(--text-dark);
       --muted: var(--muted-dark);
       --border: var(--border-dark);
+    --control-border: var(--control-border-dark);
+      --control-border: var(--control-border-dark);
       --accent: var(--accent-dark);
       --accent-text: var(--accent-text-dark);
       --danger: var(--danger-dark);
@@ -111,6 +118,7 @@
     --text: var(--text-dark);
     --muted: var(--muted-dark);
     --border: var(--border-dark);
+    --control-border: var(--control-border-dark);
     --accent: var(--accent-dark);
     --accent-text: var(--accent-text-dark);
     --danger: var(--danger-dark);
@@ -136,6 +144,12 @@ input,
 select {
   font: inherit;
   color: inherit;
+}
+
+/* The browser's default placeholder gray is below 4.5:1 on the input background. */
+::placeholder {
+  color: var(--muted);
+  opacity: 1;
 }
 
 .app {
@@ -169,10 +183,10 @@ h1 {
 
 select,
 .icon-button {
-  height: 38px;
+  min-height: 38px;
   padding: 0 10px;
   background: var(--bg);
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border);
   border-radius: 8px;
   cursor: pointer;
 }
@@ -194,7 +208,7 @@ select,
   min-width: 0;
   padding: 10px 12px;
   background: var(--bg);
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border);
   border-radius: 8px;
 }
 
@@ -280,10 +294,27 @@ button:focus-visible {
   color: var(--danger);
 }
 
+/* On touch screens every control gets a 44px target. */
 @media (pointer: coarse) {
-  .delete-button {
+  .delete-button,
+  .icon-button {
     min-inline-size: 44px;
     min-block-size: 44px;
+  }
+
+  select,
+  .filters button,
+  .text-button,
+  .link-button,
+  .todo-form button,
+  .primary-button {
+    min-block-size: 44px;
+  }
+
+  .todo-item input[type="checkbox"],
+  .checkbox input {
+    width: 24px;
+    height: 24px;
   }
 }
 
@@ -391,7 +422,7 @@ button:focus-visible {
 .field input {
   padding: 10px 12px;
   background: var(--bg);
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border);
   border-radius: 8px;
 }
 

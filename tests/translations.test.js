@@ -30,7 +30,7 @@ test('every language has exactly the English keys, all non-empty', () => {
 
 test('every data-i18n key in index.html is translated', () => {
   const html = read('index.html');
-  const keys = [...html.matchAll(/data-i18n(?:-placeholder)?="([^"]+)"/g)].map((m) => m[1]);
+  const keys = [...html.matchAll(/data-i18n(?:-placeholder|-aria-label)?="([^"]+)"/g)].map((m) => m[1]);
   assert.ok(keys.length > 15, `found ${keys.length} keys`);
   for (const key of keys) assert.ok(englishKeys.includes(key), key);
 });
@@ -40,6 +40,7 @@ test('every key app.js looks up is translated', () => {
   const keys = new Set([
     ...[...js.matchAll(/\bt\('([A-Za-z]+)'\)/g)].map((m) => m[1]),
     ...[...js.matchAll(/showStatus\('([A-Za-z]+)'/g)].map((m) => m[1]),
+    ...[...js.matchAll(/announce\('([A-Za-z]+)'/g)].map((m) => m[1]),
     ...[...js.matchAll(/:\s*'(err[A-Za-z]+|sessionExpired)'/g)].map((m) => m[1]),
     ...[...js.matchAll(/(?:heading|submit|switchLabel): '([A-Za-z]+)'/g)].map((m) => m[1]),
   ]);
@@ -49,7 +50,7 @@ test('every key app.js looks up is translated', () => {
 
 test('every language has a matching option in the language picker', () => {
   const html = read('index.html');
-  const options = [...html.matchAll(/<option value="([a-z]+)">/g)].map((m) => m[1]);
+  const options = [...html.matchAll(/<option value="([a-z]+)"[ >]/g)].map((m) => m[1]);
   assert.deepEqual(options, languages);
 });
 

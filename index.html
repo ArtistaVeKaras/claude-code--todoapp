@@ -22,11 +22,11 @@
       <div class="controls">
         <label class="visually-hidden" for="language-select" data-i18n="language">Language</label>
         <select id="language-select">
-          <option value="en">English</option>
-          <option value="fr">Français</option>
-          <option value="pt">Português</option>
-          <option value="es">Español</option>
-          <option value="pl">Polski</option>
+          <option value="en" lang="en">English</option>
+          <option value="fr" lang="fr">Français</option>
+          <option value="pt" lang="pt">Português</option>
+          <option value="es" lang="es">Español</option>
+          <option value="pl" lang="pl">Polski</option>
         </select>
         <button id="theme-toggle" type="button" class="icon-button">
           <span class="theme-to-dark"><span aria-hidden="true">🌙</span><span class="visually-hidden" data-i18n="darkMode">Switch to dark mode</span></span>
@@ -45,7 +45,10 @@
       <button id="resend-verification" type="button" class="text-button" data-i18n="resendEmail">Resend email</button>
     </div>
 
-    <p id="status-message" class="notice" role="status" hidden></p>
+    <!-- The live region stays in the page so screen readers pick up each new message. -->
+    <div role="status">
+      <p id="status-message" class="notice" hidden></p>
+    </div>
 
     <section id="auth-view" class="auth-view" aria-labelledby="auth-heading" hidden>
       <h2 id="auth-heading"></h2>
@@ -79,14 +82,15 @@
         <button type="submit" data-i18n="add">Add</button>
       </form>
 
-      <nav class="filters" aria-label="Filters">
+      <div class="filters" role="group" data-i18n-aria-label="filters" aria-label="Filters">
         <button type="button" data-filter="all" data-i18n="all" aria-pressed="true">All</button>
         <button type="button" data-filter="active" data-i18n="active" aria-pressed="false">Active</button>
         <button type="button" data-filter="completed" data-i18n="completed" aria-pressed="false">Completed</button>
-      </nav>
+      </div>
 
       <ul id="todo-list" class="todo-list" role="list"></ul>
       <p id="empty-message" class="empty" data-i18n="empty">Nothing to do. Enjoy your day!</p>
+      <p id="announcer" class="visually-hidden" role="status"></p>
 
       <footer class="app-footer">
         <span id="items-left"></span>
