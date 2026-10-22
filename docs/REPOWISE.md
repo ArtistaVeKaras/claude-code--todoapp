@@ -1,6 +1,7 @@
 # Using the Repowise MCP server
 
-Repowise gives Claude Code codebase intelligence for one repository: an overview, change risk, the reasons behind past decisions, dead code, health and security checks. It is useful for answering "what will this change break?" before you open a PR.
+Repowise gives Claude Code codebase intelligence for one repository: an overview, change risk, the reasons behind past decisions, dead code, health and security
+checks. It is useful for answering "what will this change break?" before you open a PR.
 
 ## Add it to the project
 

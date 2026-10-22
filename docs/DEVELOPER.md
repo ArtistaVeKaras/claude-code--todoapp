@@ -2,7 +2,8 @@
 
 This document describes how the TODO app is built. For features and how to run it, see the [README](../README.md).
 
-The app is plain HTML, CSS and JavaScript. There is no build step and no dependencies. Scripts are loaded as classic `<script>` tags, so everything shares one global scope.
+The app is plain HTML, CSS and JavaScript. There is no build step and no dependencies. Scripts are loaded as classic `<script>` tags, so everything shares one
+global scope.
 
 The page runs in one of two modes, picked when it loads (`detectMode()` in `app.js`):
 
@@ -73,7 +74,8 @@ State is stored in the browser's `localStorage`, JSON-encoded, under these keys 
 
 The task list (`#todo-view`) starts hidden so a signed-out visitor never sees an empty list flash before the sign-in screen.
 
-`index.html` also contains a small inline script in `<head>`. It reads `todo-theme` and sets `data-theme` on `<html>` before the first paint, which avoids a flash of the wrong theme.
+`index.html` also contains a small inline script in `<head>`. It reads `todo-theme` and sets `data-theme` on `<html>` before the first paint, which avoids a
+flash of the wrong theme.
 
 ## Function reference (`app.js`)
 
@@ -85,8 +87,10 @@ The task list (`#todo-view`) starts hidden so a signed-out visitor never sees an
 ### Language
 
 - `detectLanguage()`: takes the first two letters of `navigator.language`. Returns that code if `TRANSLATIONS` has it, otherwise `'en'`.
-- `t(key)`: returns the translation for `key` in the current language, or `undefined` if the key is missing. Falls back to `TRANSLATIONS.en` only when the whole language is missing, not for a single missing key, so every language needs every key.
-- `applyLanguage()`: updates `<html lang>`, the language select, every element with `data-i18n` (text) or `data-i18n-placeholder` (placeholder), and the document title. Then calls `applyTheme()` (so the toggle's label is retranslated) and `render()`.
+- `t(key)`: returns the translation for `key` in the current language, or `undefined` if the key is missing. Falls back to `TRANSLATIONS.en` only when the whole
+  language is missing, not for a single missing key, so every language needs every key.
+- `applyLanguage()`: updates `<html lang>`, the language select, every element with `data-i18n` (text) or `data-i18n-placeholder` (placeholder), and the
+  document title. Then calls `applyTheme()` (so the toggle's label is retranslated) and `render()`.
 
 ### Theme
 
@@ -95,7 +99,8 @@ The task list (`#todo-view`) starts hidden so a signed-out visitor never sees an
 
 ### Tasks
 
-These are `async`. In account mode they call the API first and update `todos` only if it succeeds; in local mode they update `todos` and save to `localStorage`. Event handlers call them through `run()`, which shows any API error in the status line (and returns to the sign-in screen on a 401).
+These are `async`. In account mode they call the API first and update `todos` only if it succeeds; in local mode they update `todos` and save to `localStorage`.
+Event handlers call them through `run()`, which shows any API error in the status line (and returns to the sign-in screen on a 401).
 
 - `addTodo(text)`: appends a new task, saves and re-renders.
 - `toggleTodo(id)`: flips `done` for the matching task, saves and re-renders.
@@ -120,9 +125,12 @@ These are `async`. In account mode they call the API first and update `todos` on
 
 ## Translations (`i18n.js`)
 
-`TRANSLATIONS` maps a language code to an object of keys: the todo screen (`title`, `placeholder`, `itemsLeft` and so on), the sign-in screens (`signIn`, `signUpHeading`, `forgotPassword` and so on) and the messages (`resetSent`, `sessionExpired`, and the `err*` keys used for server errors). `tests/translations.test.js` fails if any language is missing a key that `index.html` or `app.js` uses.
+`TRANSLATIONS` maps a language code to an object of keys: the todo screen (`title`, `placeholder`, `itemsLeft` and so on), the sign-in screens (`signIn`,
+`signUpHeading`, `forgotPassword` and so on) and the messages (`resetSent`, `sessionExpired`, and the `err*` keys used for server errors).
+`tests/translations.test.js` fails if any language is missing a key that `index.html` or `app.js` uses.
 
-All values are strings except `itemsLeft`, which is a function `(n) => string` so each language can apply its own plural rules (Polish, for example, has separate forms for 1, 2 to 4, and 5 or more).
+All values are strings except `itemsLeft`, which is a function `(n) => string` so each language can apply its own plural rules (Polish, for example, has
+separate forms for 1, 2 to 4, and 5 or more).
 
 Currently supported: `en`, `fr`, `pt`, `es`, `pl`.
 
@@ -134,11 +142,13 @@ Currently supported: `en`, `fr`, `pt`, `es`, `pl`.
 ### Adding translatable text
 
 1. Add the key to every language block in `i18n.js`.
-2. In `index.html`, set `data-i18n="key"` (text content) or `data-i18n-placeholder="key"` (placeholder) on the element. For text created in JavaScript, call `t('key')`.
+2. In `index.html`, set `data-i18n="key"` (text content) or `data-i18n-placeholder="key"` (placeholder) on the element. For text created in JavaScript, call
+   `t('key')`.
 
 ## Styling (`styles.css`)
 
-- Colors are CSS variables on `:root` (light theme): `--bg`, `--surface`, `--text`, `--muted`, `--border`, `--accent`, `--accent-text`, `--danger` and `--shadow`.
+- Colors are CSS variables on `:root` (light theme): `--bg`, `--surface`, `--text`, `--muted`, `--border`, `--accent`, `--accent-text`, `--danger` and
+  `--shadow`.
 - `[data-theme="dark"]` overrides the same variables. Switching theme only changes the `data-theme` attribute on `<html>`.
 - `.visually-hidden` hides labels visually while keeping them available to screen readers.
 - A media query near the end of the file adjusts `.app` and `.app-header` for small screens.
@@ -151,7 +161,9 @@ Currently supported: `en`, `fr`, `pt`, `es`, `pl`.
 
 ## Accounts and the server
 
-`npm start` runs `server/server.js`. It serves the four app files and a JSON API, using only built-in Node modules (`node:http`, `node:crypto`, `node:sqlite`), so there is still nothing to install. It needs Node 22.13 or newer. The design it follows (requirements, data model, threat table, trade-offs) was written up before the code; the choices below match it except where noted.
+`npm start` runs `server/server.js`. It serves the four app files and a JSON API, using only built-in Node modules (`node:http`, `node:crypto`, `node:sqlite`),
+so there is still nothing to install. It needs Node 22.13 or newer. The design it follows (requirements, data model, threat table, trade-offs) was written up
+before the code; the choices below match it except where noted.
 
 ### Files
 
@@ -179,7 +191,8 @@ Currently supported: `en`, `fr`, `pt`, `es`, `pl`.
 
 ### Data
 
-Tables: `users`, `password_credentials`, `sessions`, `auth_tokens` (email verification and password reset links) and `todos`. Deleting a user deletes their rows in every other table. Passwords, session tokens and link tokens are never stored, only their hashes.
+Tables: `users`, `password_credentials`, `sessions`, `auth_tokens` (email verification and password reset links) and `todos`. Deleting a user deletes their rows
+in every other table. Passwords, session tokens and link tokens are never stored, only their hashes.
 
 ### API
 
@@ -204,7 +217,8 @@ All state-changing calls must send `Content-Type: application/json`. Errors are 
 | `DELETE /api/todos/:id` | | 204, or 404 if it is not yours |
 | `POST /api/todos/clear-completed` | | 200 `{ removed }` |
 
-`user` is `{ id, email, emailVerified }`; `todo` is `{ id, text, done }`, the same shape the page has always used. Change password and delete account have no screens yet; they are API-only for now.
+`user` is `{ id, email, emailVerified }`; `todo` is `{ id, text, done }`, the same shape the page has always used. Change password and delete account have no
+screens yet; they are API-only for now.
 
 ### Security
 
@@ -219,11 +233,14 @@ All state-changing calls must send `Content-Type: application/json`. Errors are 
 | Old sessions | 24 hours idle (30 days with "Keep me signed in"), 90 days at most. Revoked on sign-out, password change and reset. Expired rows are purged hourly. |
 | Email links | 256-bit random, single use, 24 hours (verify) or 30 minutes (reset); a newer link cancels the older one. Stripped from the address bar on arrival; `Referrer-Policy: no-referrer`. |
 
-Differences from the design: scrypt instead of Argon2id (Node 22 has no built-in Argon2 and the project installs no packages); no breached-password check (it needs a network call to Have I Been Pwned); a 15-minute lock after 5 failures rather than growing delays; rate-limit counters in memory, so they reset on restart and are per process; account deletion is immediate rather than a 30-day soft delete; Sign in with Google is not built yet.
+Differences from the design: scrypt instead of Argon2id (Node 22 has no built-in Argon2 and the project installs no packages); no breached-password check (it
+needs a network call to Have I Been Pwned); a 15-minute lock after 5 failures rather than growing delays; rate-limit counters in memory, so they reset on
+restart and are per process; account deletion is immediate rather than a 30-day soft delete; Sign in with Google is not built yet.
 
 ### Email
 
-In development the server prints each email, with its link, in the terminal. To send real email, pass `createApp()` a `mailer` whose `send({ to, subject, text })` calls your email provider.
+In development the server prints each email, with its link, in the terminal. To send real email, pass `createApp()` a `mailer` whose
+`send({ to, subject, text })` calls your email provider.
 
 ## Tests
 
@@ -231,7 +248,8 @@ In development the server prints each email, with its link, in the terminal. To 
 npm test
 ```
 
-Runs `node --test` with no packages. Each server test starts the real HTTP server on a random port with an in-memory database and a fake clock, so expiry and rate-limit windows are tested without waiting.
+Runs `node --test` with no packages. Each server test starts the real HTTP server on a random port with an in-memory database and a fake clock, so expiry and
+rate-limit windows are tested without waiting.
 
 | File | Covers |
 | --- | --- |

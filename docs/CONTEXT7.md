@@ -1,10 +1,12 @@
 # Using the Context7 MCP server
 
-[Context7](https://context7.com/) gives Claude Code up-to-date documentation and code examples for libraries and web platform APIs, so answers are based on current docs rather than on what the model remembers.
+[Context7](https://context7.com/) gives Claude Code up-to-date documentation and code examples for libraries and web platform APIs, so answers are based on
+current docs rather than on what the model remembers.
 
 **Audience:** developers working on this repo with Claude Code. For how the app itself works, see [DEVELOPER.md](DEVELOPER.md).
 
-**In short:** this repo already configures Context7 in [.mcp.json](../.mcp.json). Open a Claude Code session here, run `/mcp` to confirm `Context7` is connected, then add **"use context7"** to any prompt about a library or Web API.
+**In short:** this repo already configures Context7 in [.mcp.json](../.mcp.json). Open a Claude Code session here, run `/mcp` to confirm `Context7` is
+connected, then add **"use context7"** to any prompt about a library or Web API.
 
 ## Quick start
 
@@ -41,7 +43,8 @@ If this doesn't work, see [Troubleshooting](#troubleshooting).
 }
 ```
 
-`CONTEXT7_API_KEY` is empty, which works but has lower rate limits. To raise them, get a free key at [context7.com](https://context7.com/) and set it in your own environment or local settings. **Do not commit a real key to `.mcp.json`.**
+`CONTEXT7_API_KEY` is empty, which works but has lower rate limits. To raise them, get a free key at [context7.com](https://context7.com/) and set it in your
+own environment or local settings. **Do not commit a real key to `.mcp.json`.**
 
 ### In another project
 
@@ -77,7 +80,8 @@ Each example says what Claude Code does and where it applies in this app.
 
 > How should I handle errors from localStorage.setItem, for example when storage is full? use context7
 
-Claude Code resolves **MDN Web Docs** to `/mdn/content`, then queries something like *"localStorage setItem QuotaExceededError handling"*. Relevant to `save()` in [app.js](../app.js).
+Claude Code resolves **MDN Web Docs** to `/mdn/content`, then queries something like *"localStorage setItem QuotaExceededError handling"*. Relevant to `save()`
+in [app.js](../app.js).
 
 ### 2. Give the library ID directly (skips the resolve step)
 
@@ -93,9 +97,11 @@ Pinning a version stops the answer from using APIs newer or older than the one y
 
 ### 4. Plan a new feature using current docs
 
-> I want to add end-to-end tests to this TODO app with Playwright. Use context7 to check the current setup steps, then write a test for adding, completing and deleting a task.
+> I want to add end-to-end tests to this TODO app with Playwright. Use context7 to check the current setup steps, then write a test for adding, completing and
+> deleting a task.
 
-Claude Code resolves Playwright, queries its setup and its locator/assertion docs, then writes the test against this repo's HTML (`#todo-input`, `#todo-list`, and so on).
+Claude Code resolves Playwright, queries its setup and its locator/assertion docs, then writes the test against this repo's HTML (`#todo-input`, `#todo-list`,
+and so on).
 
 ### 5. Compare options
 
@@ -124,7 +130,9 @@ To choose:
 - **Code snippets:** more snippets usually means better coverage.
 - **Source reputation:** prefer High.
 - **Benchmark score:** higher is better (100 is the maximum).
-- **Version:** some libraries list versions (Playwright: `v1.51.0`, `v1.58.2`, `v1.61.0`, `v1.63.0`). Use `/org/project/version`, for example `/microsoft/playwright/v1.63.0`, to match the version you actually use. This repo has no `package.json` yet, so check the version once you add Playwright or Vite.
+- **Version:** some libraries list versions (Playwright: `v1.51.0`, `v1.58.2`, `v1.61.0`, `v1.63.0`). Use `/org/project/version`, for example
+  `/microsoft/playwright/v1.63.0`, to match the version you actually use. This repo has no `package.json` yet, so check the version once you add Playwright or
+  Vite.
 
 Snippet counts, scores and versions change as Context7 re-indexes, so treat the table above as an illustration and rerun the search for current numbers.
 
@@ -145,7 +153,8 @@ Useful IDs for this project:
 | "Playwright: assert a list has N items" | "testing" | "Playwright setup, locators, CI and screenshots" |
 | "localStorage QuotaExceededError handling" | "storage" | "all of the Web Storage API" |
 
-If a question covers several topics, Claude Code should make one call per topic. Each tool is limited to about 3 calls per question, so specific prompts get better results.
+If a question covers several topics, Claude Code should make one call per topic. Each tool is limited to about 3 calls per question, so specific prompts get
+better results.
 
 **Privacy:** the query text is sent to the Context7 API. Don't put secrets, API keys, personal data or private code in prompts that use Context7.
 
@@ -161,7 +170,8 @@ Context7 is one source among several. Claude Code chooses among them, but you ca
 | This repo's own code | Built-in **Read**, **Grep** and **Glob** ("how does render() work?") |
 | GitHub PRs and issues | The **`gh`** CLI ("create a PR", "list open issues") |
 
-The design plugin's MCP servers (Figma, Linear, Notion, Slack, Atlassian, Intercom) are also configured. They need to be authorized with `/mcp` before they work.
+The design plugin's MCP servers (Figma, Linear, Notion, Slack, Atlassian, Intercom) are also configured. They need to be authorized with `/mcp` before they
+work.
 
 To check what's connected, run `claude mcp list` in a terminal, or `/mcp` inside a session to see each server's status and tools.
 
@@ -178,4 +188,5 @@ To check what's connected, run `claude mcp list` in a terminal, or `/mcp` inside
 | Remove it in this repo | Run `claude mcp remove Context7 -s project`, or delete the `Context7` entry from [.mcp.json](../.mcp.json). The name is case-sensitive. |
 | Remove it (hosted setup in another project) | `claude mcp remove context7 -s local` |
 
-Still stuck? Check the server's status and output in `/mcp`. For the hosted setup, run `claude mcp get context7`. The server name is `Context7` in this repo and `context7` in the hosted setup, and the names are case-sensitive. See the [Context7 site](https://context7.com/) for service status and docs.
+Still stuck? Check the server's status and output in `/mcp`. For the hosted setup, run `claude mcp get context7`. The server name is `Context7` in this repo and
+`context7` in the hosted setup, and the names are case-sensitive. See the [Context7 site](https://context7.com/) for service status and docs.
