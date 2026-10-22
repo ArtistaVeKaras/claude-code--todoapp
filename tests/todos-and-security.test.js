@@ -68,6 +68,53 @@ test('todos: text must be 1-200 characters; done must be a boolean', async () =>
   for (const done of [undefined, 'true', 1, null]) {
     assert.equal((await client.patch(`/api/todos/${todo.id}`, { done })).json.error, 'done_required');
   }
+  assert.equal((await client.patch(`/api/todos/${todo.id}`, {})).json.error, 'done_required', 'empty body');
+
+  // PATCH text follows the same 1-200 character rule.
+  const url = `/api/todos/${todo.id}`;
+  for (const text of ['', '   ', 42, null]) {
+    const res = await client.patch(url, { text });
+    assert.equal(res.status, 400, JSON.stringify(text));
+    assert.equal(res.json.error, 'text_required', JSON.stringify(text));
+  }
+  const tooLong = await client.patch(url, { text: 'x'.repeat(201) });
+  assert.equal(tooLong.status, 400);
+  assert.equal(tooLong.json.error, 'text_too_long');
+  assert.equal((await client.patch(url, { text: '😀'.repeat(201) })).json.error, 'text_too_long', 'counted in characters');
+  assert.equal((await client.patch(url, { text: 'ok', done: 'true' })).json.error, 'done_required', 'text is checked before done');
+  const stored = async () => (await client.get('/api/todos')).json.todos.find((t) => t.id === todo.id).text;
+  assert.equal(await stored(), 'ok', 'rejected edits change nothing');
+
+  assert.equal((await client.patch(url, { text: 'x'.repeat(200) })).status, 200);
+  assert.equal((await client.patch(url, { text: '😀'.repeat(200) })).status, 200, 'counted in characters');
+  assert.equal(await stored(), '😀'.repeat(200));
+});
+
+test('todos: PATCH can change text', async () => {
+  const client = await signedIn(env);
+  const first = (await client.post('/api/todos', { text: 'first' })).json.todo;
+  const second = (await client.post('/api/todos', { text: 'second' })).json.todo;
+  const third = (await client.post('/api/todos', { text: 'third' })).json.todo;
+  await client.patch(`/api/todos/${second.id}`, { done: true });
+
+  // Text only: trimmed, done untouched.
+  const edited = await client.patch(`/api/todos/${second.id}`, { text: '  second, edited  ' });
+  assert.equal(edited.status, 200);
+  assert.deepEqual(edited.json, { todo: { id: second.id, text: 'second, edited', done: true } });
+
+  // Both fields at once.
+  const both = await client.patch(`/api/todos/${first.id}`, { text: 'first, edited', done: true });
+  assert.equal(both.status, 200);
+  assert.deepEqual(both.json, { todo: { id: first.id, text: 'first, edited', done: true } });
+  const undone = await client.patch(`/api/todos/${first.id}`, { text: ' first again ', done: false });
+  assert.deepEqual(undone.json.todo, { id: first.id, text: 'first again', done: false });
+
+  // Persisted, and every task keeps its place.
+  assert.deepEqual((await client.get('/api/todos')).json.todos, [
+    { id: first.id, text: 'first again', done: false },
+    { id: second.id, text: 'second, edited', done: true },
+    { id: third.id, text: 'third', done: false },
+  ]);
 });
 
 test('todos: stored text is returned exactly, HTML and all (the page renders it as text)', async () => {
@@ -75,6 +122,12 @@ test('todos: stored text is returned exactly, HTML and all (the page renders it 
   const text = '<img src=x onerror=alert(1)> & "quotes"';
   await client.post('/api/todos', { text });
   assert.equal((await client.get('/api/todos')).json.todos[0].text, text);
+
+  const other = '<script>alert(2)</script> & \'single\' "double"';
+  const todoId = (await client.get('/api/todos')).json.todos[0].id;
+  const res = await client.patch(`/api/todos/${todoId}`, { text: other });
+  assert.equal(res.json.todo.text, other);
+  assert.equal((await client.get('/api/todos')).json.todos[0].text, other);
 });
 
 test('todos: users never see or change each other\'s todos', async () => {
@@ -86,6 +139,10 @@ test('todos: users never see or change each other\'s todos', async () => {
 
   assert.deepEqual((await ben.get('/api/todos')).json.todos.map((t) => t.text), ["Ben's task"]);
   assert.equal((await ben.patch(`/api/todos/${anaTodo.id}`, { done: false })).status, 404);
+  const benEdit = await ben.patch(`/api/todos/${anaTodo.id}`, { text: 'hijacked' });
+  assert.equal(benEdit.status, 404);
+  assert.equal(benEdit.json.error, 'not_found');
+  assert.equal((await ben.patch(`/api/todos/${anaTodo.id}`, { text: 'hijacked', done: false })).status, 404);
   assert.equal((await ben.del(`/api/todos/${anaTodo.id}`)).status, 404);
   assert.deepEqual((await ben.post('/api/todos/clear-completed')).json, { removed: 0 });
 
@@ -100,6 +157,8 @@ test('todos: every todo route needs a session', async () => {
   assert.equal((await anon.get('/api/todos')).status, 401);
   assert.equal((await anon.post('/api/todos', { text: 'x' })).status, 401);
   assert.equal((await anon.patch(`/api/todos/${todo.id}`, { done: true })).status, 401);
+  assert.equal((await anon.patch(`/api/todos/${todo.id}`, { text: 'changed' })).status, 401);
+  assert.equal((await client.get('/api/todos')).json.todos[0].text, 'mine', 'anonymous edit changed nothing');
   assert.equal((await anon.del(`/api/todos/${todo.id}`)).status, 401);
   assert.equal((await anon.post('/api/todos/clear-completed')).status, 401);
   await client.post('/api/auth/logout');
@@ -130,6 +189,19 @@ test('CSRF: state-changing requests must be JSON', async () => {
   const noType = await client.request('POST', '/api/todos', { raw: '{"text":"x"}' });
   assert.equal(noType.status, 415);
   assert.deepEqual((await client.get('/api/todos')).json.todos, []);
+
+  const todo = (await client.post('/api/todos', { text: 'original' })).json.todo;
+  const formPatch = await client.request('PATCH', `/api/todos/${todo.id}`, {
+    raw: 'text=hacked',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+  });
+  assert.equal(formPatch.status, 415);
+  const plainPatch = await client.request('PATCH', `/api/todos/${todo.id}`, {
+    raw: '{"text":"hacked"}',
+    headers: { 'content-type': 'text/plain' },
+  });
+  assert.equal(plainPatch.status, 415);
+  assert.equal((await client.get('/api/todos')).json.todos[0].text, 'original', 'PATCH text unchanged');
   assert.equal((await client.get('/api/auth/me')).status, 200, 'session untouched');
 });
 
@@ -140,6 +212,17 @@ test('CSRF: requests from another origin are refused', async () => {
   assert.equal(evil.json.error, 'bad_origin');
   const crossSite = await client.post('/api/todos', { text: 'x' }, { headers: { 'sec-fetch-site': 'cross-site' } });
   assert.equal(crossSite.status, 403);
+
+  const todo = (await client.post('/api/todos', { text: 'original' })).json.todo;
+  const evilPatch = await client.patch(`/api/todos/${todo.id}`, { text: 'hacked' }, { headers: { origin: 'https://evil.example' } });
+  assert.equal(evilPatch.status, 403);
+  assert.equal(evilPatch.json.error, 'bad_origin');
+  const crossSitePatch = await client.patch(`/api/todos/${todo.id}`, { text: 'hacked' }, { headers: { 'sec-fetch-site': 'cross-site' } });
+  assert.equal(crossSitePatch.status, 403);
+  assert.equal((await client.get('/api/todos')).json.todos.find((t) => t.id === todo.id).text, 'original', 'PATCH text unchanged');
+  const sameOrigin = await client.patch(`/api/todos/${todo.id}`, { text: 'fine' }, { headers: { origin: env.base, 'sec-fetch-site': 'same-origin' } });
+  assert.equal(sameOrigin.status, 200);
+
   // Login from another site is refused too (login CSRF).
   const login = await env.client().post('/api/auth/login', { email: 'ana@example.com', password: 'correct horse battery' }, { headers: { origin: 'https://evil.example' } });
   assert.equal(login.status, 403);

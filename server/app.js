@@ -93,7 +93,7 @@ function createApp({
       'INSERT INTO todos (id, user_id, text, done, created_at, position) VALUES (?, ?, ?, 0, ?, ?)'
     ),
     todo: db.prepare('SELECT id, text, done FROM todos WHERE id = ? AND user_id = ?'),
-    setTodoDone: db.prepare('UPDATE todos SET done = ? WHERE id = ? AND user_id = ?'),
+    updateTodo: db.prepare('UPDATE todos SET text = COALESCE(?, text), done = COALESCE(?, done) WHERE id = ? AND user_id = ?'),
     deleteTodo: db.prepare('DELETE FROM todos WHERE id = ? AND user_id = ?'),
     clearCompleted: db.prepare('DELETE FROM todos WHERE user_id = ? AND done = 1'),
   };
@@ -422,12 +422,17 @@ function createApp({
     sendJson(res, 200, { todos: sql.listTodos.all(user.id).map(publicTodo) });
   }
 
+  function readTodoText(value) {
+    const text = typeof value === 'string' ? value.trim() : '';
+    if (!text) throw new HttpError(400, 'text_required');
+    if ([...text].length > TODO_MAX_LENGTH) throw new HttpError(400, 'text_too_long');
+    return text;
+  }
+
   async function createTodo(req, res) {
     const { user } = requireAuth(req);
     const body = await readJson(req);
-    const text = typeof body.text === 'string' ? body.text.trim() : '';
-    if (!text) throw new HttpError(400, 'text_required');
-    if ([...text].length > TODO_MAX_LENGTH) throw new HttpError(400, 'text_too_long');
+    const text = readTodoText(body.text);
     const { n, maxPos } = sql.countTodos.get(user.id);
     if (n >= TODO_MAX_PER_USER) throw new HttpError(400, 'too_many_todos');
     const id = newId();
@@ -438,8 +443,12 @@ function createApp({
   async function updateTodo(req, res, id) {
     const { user } = requireAuth(req);
     const body = await readJson(req);
-    if (typeof body.done !== 'boolean') throw new HttpError(400, 'done_required');
-    const { changes } = sql.setTodoDone.run(body.done ? 1 : 0, id, user.id);
+    const hasText = Object.hasOwn(body, 'text');
+    const text = hasText ? readTodoText(body.text) : null;
+    const hasDone = Object.hasOwn(body, 'done');
+    if ((!hasText || hasDone) && typeof body.done !== 'boolean') throw new HttpError(400, 'done_required');
+    const done = hasDone ? (body.done ? 1 : 0) : null;
+    const { changes } = sql.updateTodo.run(text, done, id, user.id);
     if (changes === 0) throw new HttpError(404, 'not_found');
     sendJson(res, 200, { todo: publicTodo(sql.todo.get(id, user.id)) });
   }

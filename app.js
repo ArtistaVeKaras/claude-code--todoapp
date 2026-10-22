@@ -53,6 +53,13 @@ let authMode = 'signin'; // 'signin' | 'signup' | 'forgot' | 'reset'
 let resetToken = null;
 let statusKey = null; // translation key of the message shown in the status line
 let busy = false;
+// Inline edit state. It lives here (not in the DOM) because render() rebuilds the list.
+let editingId = null; // id of the task being edited, or null
+let editDraft = ''; // what has been typed in the edit field so far
+let editSaving = false; // true while the edit is being sent to the server
+let editErrorShown = false; // a failed save left an error in the status line
+let pendingEditId = null; // task whose Edit was clicked while another edit was still saving
+let pointerDown = false; // a mouse button is held, so a click is still on its way
 
 // ---------- storage ----------
 
@@ -115,6 +122,7 @@ const ERROR_KEYS = {
   too_many_requests: 'errTooManyRequests',
   invalid_token: 'errInvalidToken',
   network_error: 'errNetwork',
+  not_found: 'errTaskNotFound',
 };
 
 function errorKey(error) {
@@ -253,6 +261,155 @@ async function toggleTodo(id) {
   announce(todo.done ? 'taskCompleted' : 'taskReopened');
 }
 
+// Changes a task's text. Like the other actions it is not optimistic: in account mode the
+// task changes only once the server has accepted the new text.
+async function editTodo(id, text) {
+  const todo = todos.find((item) => item.id === id);
+  if (!todo) return;
+  if (mode === 'account') {
+    const { todo: updated } = await api('PATCH', `/api/todos/${encodeURIComponent(id)}`, { text });
+    todo.text = updated.text;
+  } else {
+    todo.text = text;
+    save(STORAGE_KEYS.todos, todos);
+  }
+  // The edit is over once it is saved, so the row goes back to its normal form.
+  editingId = null;
+  editDraft = '';
+  render();
+  announce('taskEdited');
+}
+
+function focusEditField() {
+  const field = els.list.querySelector('[data-control="edit-field"]');
+  if (field) field.focus();
+  return field;
+}
+
+// Puts keyboard focus back on a row's Edit button after its edit ended with Enter or Escape.
+function focusControl(ref) {
+  if (!ref) return;
+  const row = els.list.querySelector(`li[data-id="${CSS.escape(ref.id)}"]`);
+  const target = row && row.querySelector(`[data-control="${ref.control}"]`);
+  if (target) target.focus();
+}
+
+function focusEditButton(id) {
+  const row = els.list.querySelector(`li[data-id="${CSS.escape(id)}"]`);
+  const button = row && row.querySelector('[data-control="edit"]');
+  (button || els.input).focus();
+}
+
+function startEdit(id) {
+  if (editSaving) return;
+  // Starting a second edit finishes the first one the same way leaving its field would.
+  if (editingId !== null && editingId !== id) {
+    commitEdit('blur');
+    if (editSaving) {
+      pendingEditId = id; // opened once the save above has finished
+      return;
+    }
+  }
+  if (editingId === id) return;
+  const todo = todos.find((item) => item.id === id);
+  if (!todo) return;
+  editingId = id;
+  editDraft = todo.text;
+  render();
+  const field = focusEditField();
+  if (field) field.select();
+}
+
+function cancelEdit() {
+  editingId = null;
+  editDraft = '';
+  if (statusKey === 'errTaskEmpty') clearStatus();
+  render();
+}
+
+// Ends the edit in the open field. source is 'enter' or 'blur'.
+// refocus ({ id, control }) is where keyboard focus goes once the field is gone, when the user
+// left the field for another control.
+function commitEdit(source, refocus) {
+  if (editingId === null || editSaving) return;
+  const id = editingId;
+  const todo = todos.find((item) => item.id === id);
+  const text = editDraft.trim();
+  if (!todo || text === todo.text) {
+    cancelEdit();
+    focusControl(refocus);
+    return;
+  }
+  if (!text) {
+    if (source === 'blur') {
+      cancelEdit();
+      focusControl(refocus);
+      return;
+    }
+    // Enter on an empty field: keep it open and say why nothing happened.
+    const field = els.list.querySelector('[data-control="edit-field"]');
+    if (field) {
+      field.setAttribute('aria-invalid', 'true');
+      field.setAttribute('aria-describedby', 'edit-hint status-message');
+    }
+    if (statusKey === 'errTaskEmpty') {
+      // Same text again: empty the line first so the live region announces it once more.
+      els.status.textContent = '';
+      setTimeout(() => {
+        if (statusKey === 'errTaskEmpty') renderStatus();
+      }, 50);
+    } else {
+      showStatus('errTaskEmpty', 'error');
+    }
+    return;
+  }
+
+  editSaving = true;
+  const field = els.list.querySelector('[data-control="edit-field"]');
+  if (field) field.readOnly = true;
+  let saved = true;
+  run(async () => {
+    try {
+      await editTodo(id, text);
+    } catch (error) {
+      saved = false;
+      if (error.message === 'not_found') {
+        // Gone from the server (deleted elsewhere), so drop it here too.
+        todos = todos.filter((item) => item.id !== id);
+        if (editingId === id) {
+          editingId = null;
+          editDraft = '';
+        }
+        render();
+      }
+      throw error;
+    }
+  }).then(() => {
+    editSaving = false;
+    if (saved) {
+      if (editErrorShown) clearStatus();
+      editErrorShown = false;
+      if (source === 'enter') focusEditButton(id);
+      focusControl(refocus);
+      // An Edit click on another row arrived while this save ran; open that row now.
+      if (pendingEditId !== null) {
+        const next = pendingEditId;
+        pendingEditId = null;
+        startEdit(next);
+      }
+      return;
+    }
+    pendingEditId = null;
+    editErrorShown = true;
+    // Failed: keep the field open with the typed text so it can be retried or cancelled.
+    const open = els.list.querySelector('[data-control="edit-field"]');
+    if (editingId === id && open) {
+      open.readOnly = false;
+      if (source === 'enter') open.focus();
+    }
+  });
+}
+
 async function deleteTodo(id) {
   if (mode === 'account') {
     await api('DELETE', `/api/todos/${encodeURIComponent(id)}`);
@@ -273,9 +430,98 @@ async function clearCompletedTodos() {
   announce('completedCleared');
 }
 
+function resetEdit() {
+  editingId = null;
+  editDraft = '';
+  editSaving = false;
+  editErrorShown = false;
+  pendingEditId = null;
+}
+
 // Runs a todo action, showing any server error instead of failing silently.
 function run(action) {
   return action().catch(handleApiError);
+}
+
+document.addEventListener('mousedown', () => {
+  pointerDown = true;
+}, true);
+document.addEventListener('mouseup', () => {
+  setTimeout(() => {
+    pointerDown = false;
+  }, 0);
+}, true);
+
+// The text field that replaces a row while its task is being edited.
+function createEditField(id) {
+  const field = document.createElement('input');
+  field.type = 'text';
+  field.className = 'todo-edit';
+  field.dataset.control = 'edit-field';
+  field.maxLength = 200;
+  field.autocomplete = 'off';
+  field.enterKeyHint = 'done';
+  field.value = editDraft;
+  field.readOnly = editSaving;
+  field.setAttribute('aria-label', t('editTask'));
+  if (statusKey === 'errTaskEmpty') {
+    field.setAttribute('aria-invalid', 'true');
+    field.setAttribute('aria-describedby', 'edit-hint status-message');
+  } else {
+    field.setAttribute('aria-describedby', 'edit-hint');
+  }
+
+  field.addEventListener('input', () => {
+    editDraft = field.value;
+    field.removeAttribute('aria-invalid');
+    field.setAttribute('aria-describedby', 'edit-hint');
+    if (statusKey === 'errTaskEmpty') clearStatus();
+  });
+  let composing = false; // an IME composition is in progress
+  field.addEventListener('compositionstart', () => {
+    composing = true;
+  });
+  field.addEventListener('compositionend', () => {
+    // Safari sends the closing Enter keydown after this event, so stay "composing" a moment.
+    setTimeout(() => {
+      composing = false;
+    }, 0);
+  });
+  field.addEventListener('keydown', (event) => {
+    if (event.isComposing || event.keyCode === 229 || composing) return;
+    if (event.key !== 'Enter' && event.key !== 'Escape') return;
+    event.preventDefault();
+    if (editSaving) return;
+    if (event.key === 'Enter') {
+      commitEdit('enter');
+      // Saving continues in the background; an empty or unchanged field is settled right here.
+      if (editingId === null) focusEditButton(id);
+    } else {
+      cancelEdit();
+      focusEditButton(id);
+    }
+  });
+  // Leaving the field saves it. A field that render() just removed must not save again.
+  field.addEventListener('blur', (event) => {
+    if (!field.isConnected || editingId !== id || editSaving) return;
+    const next = event.relatedTarget;
+    const nextRow = next && els.list.contains(next) ? next.closest('li') : null;
+    if (!nextRow || !next.dataset.control) {
+      commitEdit('blur');
+      return;
+    }
+    // Focus is moving to another control in the list. Saving rebuilds the list, which would
+    // destroy that control (and a click on it) mid-gesture, so wait until the click has landed.
+    const refocus = { id: nextRow.dataset.id, control: next.dataset.control };
+    const settle = () => {
+      setTimeout(() => {
+        if (editingId === id && !editSaving) commitEdit('blur', refocus);
+      }, 0);
+    };
+    if (pointerDown) document.addEventListener('mouseup', settle, { once: true });
+    else settle();
+  });
+  return field;
 }
 
 function render() {
@@ -293,15 +539,28 @@ function render() {
     index: [...els.list.children].indexOf(focusedRow),
   };
 
+  // An edit cannot outlive its task (deleted, or hidden by the filter).
+  if (editingId !== null && !visible.some((item) => item.id === editingId)) {
+    editingId = null;
+    editDraft = '';
+  }
+
   els.list.innerHTML = '';
   visible.forEach((item, index) => {
     const li = document.createElement('li');
     li.className = 'todo-item' + (item.done ? ' done' : '');
     li.dataset.id = item.id;
 
+    if (item.id === editingId) {
+      li.append(createEditField(item.id));
+      els.list.appendChild(li);
+      return;
+    }
+
     // Each control is named after its task ("Buy milk", "Delete Buy milk") so screen reader
     // users can tell the rows apart.
     const textId = `todo-text-${index}`;
+    const editId = `todo-edit-${index}`;
     const deleteId = `todo-delete-${index}`;
 
     const checkbox = document.createElement('input');
@@ -315,6 +574,23 @@ function render() {
     span.id = textId;
     span.className = 'todo-text';
     span.textContent = item.text;
+    span.addEventListener('dblclick', () => startEdit(item.id));
+
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.id = editId;
+    edit.className = 'edit-button';
+    edit.dataset.control = 'edit';
+    edit.title = t('edit');
+    edit.setAttribute('aria-labelledby', `${editId} ${textId}`);
+    const editIcon = document.createElement('span');
+    editIcon.setAttribute('aria-hidden', 'true');
+    editIcon.textContent = '✎';
+    const editLabel = document.createElement('span');
+    editLabel.className = 'visually-hidden';
+    editLabel.textContent = t('edit');
+    edit.append(editIcon, editLabel);
+    edit.addEventListener('click', () => startEdit(item.id));
 
     const del = document.createElement('button');
     del.type = 'button';
@@ -332,7 +608,7 @@ function render() {
     del.append(icon, label);
     del.addEventListener('click', () => run(() => deleteTodo(item.id)));
 
-    li.append(checkbox, span, del);
+    li.append(checkbox, span, edit, del);
     els.list.appendChild(li);
   });
 
@@ -414,6 +690,7 @@ async function signedIn(signedInUser) {
   els.verifyBanner.hidden = user.emailVerified;
   todos = [];
   filter = 'all';
+  resetEdit();
   render();
   els.todoView.hidden = false;
   try {
@@ -427,6 +704,7 @@ async function signedIn(signedInUser) {
 function signedOut() {
   user = null;
   todos = [];
+  resetEdit();
   render();
   setAuthMode('signin');
   showAuthView();
