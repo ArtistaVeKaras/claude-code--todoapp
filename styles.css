@@ -280,7 +280,8 @@ button:focus-visible {
   text-decoration: line-through;
 }
 
-.delete-button {
+.delete-button,
+.edit-button {
   min-inline-size: 24px;
   min-block-size: 24px;
   background: none;
@@ -294,9 +295,34 @@ button:focus-visible {
   color: var(--danger);
 }
 
+.edit-button:hover {
+  color: var(--accent);
+}
+
+.todo-edit {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+}
+
+.todo-edit:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.todo-edit[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
 /* On touch screens every control gets a 44px target. */
 @media (pointer: coarse) {
   .delete-button,
+  .edit-button,
   .icon-button {
     min-inline-size: 44px;
     min-block-size: 44px;

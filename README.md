@@ -5,7 +5,7 @@ the small built-in server to get user accounts.
 
 ## Features
 
-- Add, complete and delete tasks
+- Add, edit, complete and delete tasks (double-click a task or press its ✎ button to edit; Enter or leaving the field saves, Escape cancels)
 - Filter by All, Active or Completed, and clear completed tasks
 - Follows your system light or dark setting, with a 🌙 / ☀️ button to switch for this site (pressing it again goes back to following the system)
 - Language switcher: English, French, Portuguese, Spanish and Polish
@@ -50,8 +50,9 @@ All.
 
 ![From click to screen and storage](docs/diagrams/click-to-storage-flow.svg)
 
-**Life of a task.** A task is one object whose only changing field is `done`. Because each transition saves `todo-items` before redrawing, a reload brings every
-task back in the state it was in. Clear completed removes all Done tasks at once; the ✕ button removes a single task from either state.
+**Life of a task.** A task is one object. Ticking it changes `done`, and editing changes `text`. Because each change saves `todo-items` before redrawing, a
+reload brings every task back as it was. Editing does not change whether a task is Active or Done. Clear completed removes all Done tasks at once; the ✕
+button removes a single task from either state.
 
 ![Life of a task](docs/diagrams/task-lifecycle.svg)
 

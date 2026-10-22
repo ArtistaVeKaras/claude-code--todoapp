@@ -33,13 +33,13 @@ A task is a plain object:
 { id: 'lq3k9x2ab1cd', text: 'Buy milk', done: false }
 ```
 
-- `id`: `Date.now()` in base 36 followed by 4 random base-36 characters. Used to find a task when it is toggled or deleted.
-- `text`: the trimmed text the user typed (at most 200 characters, enforced by `maxlength` on the input).
+- `id`: `Date.now()` in base 36 followed by 4 random base-36 characters. Used to find a task when it is toggled, edited or deleted.
+- `text`: the trimmed text the user typed (at most 200 characters, enforced by `maxlength` on the input). It can be edited later, with the same limit.
 - `done`: whether the task is completed.
 
 ## State
 
-`app.js` keeps four module-level variables:
+The main module-level variables in `app.js` are:
 
 | Variable | Type | Meaning |
 | --- | --- | --- |
@@ -47,6 +47,14 @@ A task is a plain object:
 | `filter` | `'all'` \| `'active'` \| `'completed'` | Current filter. Not persisted; resets to `all` on reload. |
 | `lang` | string | Language code, a key of `TRANSLATIONS`. |
 | `theme` | `'light'` \| `'dark'` | Current theme. |
+| `editingId` | string or `null` | Id of the task being edited. |
+| `editDraft` | string | What has been typed in the edit field so far. |
+| `editSaving` | boolean | True while the edit is being sent to the server. The field is read-only meanwhile. |
+| `editErrorShown` | boolean | A failed save left an error in the status line. It is cleared after the next successful save. |
+| `pendingEditId` | string or `null` | A task whose Edit was clicked while another edit was still saving. It opens when that save succeeds. |
+| `pointerDown` | boolean | A mouse button is held, so a click is still on its way. |
+
+The edit variables live here, not in the DOM, because `render()` rebuilds the list. They are not persisted. `resetEdit()` clears them on sign-in and sign-out.
 
 ## Persistence
 
@@ -104,9 +112,24 @@ Event handlers call them through `run()`, which shows any API error in the statu
 
 - `addTodo(text)`: appends a new task, saves and re-renders.
 - `toggleTodo(id)`: flips `done` for the matching task, saves and re-renders.
+- `editTodo(id, text)`: sets the text of the matching task (in account mode, from the server's answer to `PATCH`), ends the edit, saves, re-renders and
+  announces `taskEdited`.
+- `startEdit(id)`: opens the edit field for a task and selects its text. Does nothing while a save is running. If another task is being edited, it first
+  finishes that edit as a blur would. If that save is still running, `pendingEditId` is set and the edit opens afterwards.
+- `commitEdit(source, refocus)`: ends the open edit. `source` is `'enter'` or `'blur'`. Unchanged text cancels. Empty text cancels on blur; on Enter it keeps
+  the field open, sets `aria-invalid` and shows `errTaskEmpty` (pressing Enter again re-announces it). Otherwise it makes the field read-only and saves through
+  `run()`. On success, Enter returns focus to the Edit button, and `refocus` (`{ id, control }`) returns it to the control the user was moving to. On failure
+  the field stays open with the typed text. A `not_found` answer also removes the task from `todos`.
+- `cancelEdit()`: drops the edit, clears `errTaskEmpty` and re-renders.
+- `resetEdit()`: clears all the edit variables.
+- `createEditField(id)`: builds the text input that replaces a row (see Events and Accessibility).
+- `focusEditButton(id)`: focuses the Edit button of a row, or the add-task input if the row is gone.
+- `focusControl(ref)`: focuses the control `ref.control` in row `ref.id`, if it exists.
 - `deleteTodo(id)`: removes the matching task, saves and re-renders.
 - `clearCompletedTodos()`: removes every done task, saves and re-renders.
-- `render()`: rebuilds the task list from `todos` and `filter`, using `createElement` and `textContent` (so task text is never parsed as HTML). It also updates:
+- `render()`: rebuilds the task list from `todos` and `filter`, using `createElement` and `textContent` (so task text is never parsed as HTML). A row has a
+  checkbox, the text, an Edit button and a delete button. The row of the task in `editingId` has only the edit field from `createEditField()`. If that task is
+  no longer visible (deleted, or hidden by the filter), the edit is dropped. It also updates:
   - the empty message (shown when no tasks are visible),
   - the "items left" counter (counts all tasks that are not done, regardless of filter),
   - the "Clear completed" button (shown only when at least one task is done),
@@ -122,11 +145,21 @@ Event handlers call them through `run()`, which shows any API error in the statu
 | `#theme-toggle` | `click` | Flips `theme`, saves it and calls `applyTheme()`. |
 | `#language-select` | `change` | Sets `lang`, saves it and calls `applyLanguage()`. |
 | Task checkbox / ✕ button | `change` / `click` | Created in `render()`. Call `toggleTodo` / `deleteTodo`. |
+| Task text | `dblclick` | Calls `startEdit(id)`. |
+| Edit (✎) button | `click` | Calls `startEdit(id)`. |
+| Edit field | `keydown` Enter | Calls `commitEdit('enter')`, then focuses the Edit button if the edit ended at once. Ignored while saving. |
+| Edit field | `keydown` Escape | Calls `cancelEdit()` and focuses the Edit button. Ignored while saving. |
+| Edit field | `input` | Stores the text in `editDraft` and clears the invalid state and `errTaskEmpty`. |
+| Edit field | `blur` | Saves like Enter, but empty text cancels. If focus moves to another control in the list, it waits for the click to finish and then restores focus to that control. |
+| Edit field | `compositionstart` / `compositionend` | Enter and Escape are ignored during an IME composition. |
+| `document` | `mousedown` / `mouseup` | Set and clear `pointerDown`. |
 
 ## Translations (`i18n.js`)
 
 `TRANSLATIONS` maps a language code to an object of keys: the todo screen (`title`, `placeholder`, `itemsLeft` and so on), the sign-in screens (`signIn`,
 `signUpHeading`, `forgotPassword` and so on) and the messages (`resetSent`, `sessionExpired`, and the `err*` keys used for server errors).
+Editing uses `edit` (button label), `editTask` (field label), `editHint` (the hidden hint the field points to), `taskEdited` (announcement), `errTaskEmpty` and
+`errTaskNotFound`.
 `tests/translations.test.js` fails if any language is missing a key that `index.html` or `app.js` uses.
 
 All values are strings except `itemsLeft`, which is a function `(n) => string` so each language can apply its own plural rules (Polish, for example, has
@@ -151,6 +184,8 @@ Currently supported: `en`, `fr`, `pt`, `es`, `pl`.
   `--shadow`.
 - `[data-theme="dark"]` overrides the same variables. Switching theme only changes the `data-theme` attribute on `<html>`.
 - `.visually-hidden` hides labels visually while keeping them available to screen readers.
+- `.edit-button` shares its rules with `.delete-button` (24px minimum, 44px under `pointer: coarse`). Its hover color is `--accent`.
+- `.todo-edit` is the edit field. Its border uses `--control-border`, and `[aria-invalid="true"]` switches the border to `--danger`.
 - A media query near the end of the file adjusts `.app` and `.app-header` for small screens.
 
 ## Accessibility
@@ -158,6 +193,11 @@ Currently supported: `en`, `fr`, `pt`, `es`, `pl`.
 - Inputs have labels (visually hidden), and icon-only buttons have an `aria-label` and tooltip that follow the current language.
 - The page language (`<html lang>`) follows the selected language.
 - Task checkboxes and delete buttons have translated `aria-label`s.
+- The Edit button is named "Edit <task>" with `aria-labelledby` (its own label plus the task text).
+- The edit field has an `aria-label` (`editTask`) and `aria-describedby="edit-hint"`, which points to a visually hidden paragraph in `index.html`. When the text
+  is empty it also has `aria-invalid="true"` and `status-message` in its description, so the error is read.
+- After Enter or Escape, focus returns to the row's Edit button. Pressing Enter on empty text again re-announces the error.
+- A successful edit is announced through the live region (`taskEdited`).
 
 ## Accounts and the server
 
@@ -213,9 +253,13 @@ All state-changing calls must send `Content-Type: application/json`. Errors are 
 | `DELETE /api/auth/account` | `password` | 204; the account and its tasks are deleted |
 | `GET /api/todos` | | 200 `{ todos }` |
 | `POST /api/todos` | `text` | 201 `{ todo }` |
-| `PATCH /api/todos/:id` | `done` | 200 `{ todo }`, or 404 if it is not yours |
+| `PATCH /api/todos/:id` | `text` and/or `done` (at least one) | 200 `{ todo }`, or 404 `not_found` if it is not yours |
 | `DELETE /api/todos/:id` | | 204, or 404 if it is not yours |
 | `POST /api/todos/clear-completed` | | 200 `{ removed }` |
+
+`PATCH` checks `text` first. It is trimmed and must be 1 to 200 characters (counted as code points), else 400 `text_required` or `text_too_long`. `done`, if
+sent, must be a boolean. A body with neither field, or with a `done` that is not a boolean, gets 400 `done_required`. A field that is not sent is left as it is,
+and the task keeps its place in the list.
 
 `user` is `{ id, email, emailVerified }`; `todo` is `{ id, text, done }`, the same shape the page has always used. Change password and delete account have no
 screens yet; they are API-only for now.
@@ -255,15 +299,17 @@ rate-limit windows are tested without waiting.
 | --- | --- |
 | `tests/units.test.js` | Hashing, password policy, secrets, rate limiter, cookie parsing |
 | `tests/auth.test.js` | Sign-up, sign-in, sessions and expiry, sign-out, verification, reset, change password, delete account, rate limits, purge |
-| `tests/todos-and-security.test.js` | Todo routes, users kept apart, CSRF, bad bodies, static files, headers, production cookies |
+| `tests/todos-and-security.test.js` | Todo routes including `PATCH` of `text` and `done` (validation, trimming, order kept), users kept apart, CSRF, bad bodies, static files, headers, production cookies |
 | `tests/translations.test.js` | Every language has every key the page uses |
 
 ## Known limitations
 
-- Tasks cannot be edited after they are added.
 - The filter is not remembered across reloads.
 - In local mode, data lives only in one browser on one device; clearing site data deletes the tasks.
 - Tasks saved in local mode are not moved into an account when you sign in.
 - Several tabs open at once do not sync; in account mode a reload shows the latest tasks.
+- Edits are last-write-wins across tabs and devices.
+- Escape is the only way to cancel an edit. Moving focus away saves it, so touch and switch users cannot cancel.
+- The todo routes, including `PATCH`, have no rate limit.
 - Change password, sign out everywhere and delete account have API routes but no screens yet.
 - The diagrams in `docs/diagrams/` show local mode.
