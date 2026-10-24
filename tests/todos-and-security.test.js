@@ -42,7 +42,8 @@ test('todos: add, list in order, toggle, delete, clear completed', async () => {
   assert.equal((await client.del(`/api/todos/${eggs.id}`)).status, 404, 'already gone');
 
   const cleared = await client.post('/api/todos/clear-completed');
-  assert.deepEqual(cleared.json, { removed: 2 });
+  assert.equal(cleared.json.removed, 2);
+  assert.equal(typeof cleared.json.undo, 'string');
   assert.deepEqual((await client.get('/api/todos')).json, { todos: [] });
 });
 
@@ -100,20 +101,20 @@ test('todos: PATCH can change text', async () => {
   // Text only: trimmed, done untouched.
   const edited = await client.patch(`/api/todos/${second.id}`, { text: '  second, edited  ' });
   assert.equal(edited.status, 200);
-  assert.deepEqual(edited.json, { todo: { id: second.id, text: 'second, edited', done: true } });
+  assert.deepEqual(edited.json, { todo: { id: second.id, text: 'second, edited', done: true, createdAt: second.createdAt } });
 
   // Both fields at once.
   const both = await client.patch(`/api/todos/${first.id}`, { text: 'first, edited', done: true });
   assert.equal(both.status, 200);
-  assert.deepEqual(both.json, { todo: { id: first.id, text: 'first, edited', done: true } });
+  assert.deepEqual(both.json, { todo: { id: first.id, text: 'first, edited', done: true, createdAt: first.createdAt } });
   const undone = await client.patch(`/api/todos/${first.id}`, { text: ' first again ', done: false });
-  assert.deepEqual(undone.json.todo, { id: first.id, text: 'first again', done: false });
+  assert.deepEqual(undone.json.todo, { id: first.id, text: 'first again', done: false, createdAt: first.createdAt });
 
   // Persisted, and every task keeps its place.
   assert.deepEqual((await client.get('/api/todos')).json.todos, [
-    { id: first.id, text: 'first again', done: false },
-    { id: second.id, text: 'second, edited', done: true },
-    { id: third.id, text: 'third', done: false },
+    { id: first.id, text: 'first again', done: false, createdAt: first.createdAt },
+    { id: second.id, text: 'second, edited', done: true, createdAt: second.createdAt },
+    { id: third.id, text: 'third', done: false, createdAt: third.createdAt },
   ]);
 });
 
@@ -144,10 +145,10 @@ test('todos: users never see or change each other\'s todos', async () => {
   assert.equal(benEdit.json.error, 'not_found');
   assert.equal((await ben.patch(`/api/todos/${anaTodo.id}`, { text: 'hijacked', done: false })).status, 404);
   assert.equal((await ben.del(`/api/todos/${anaTodo.id}`)).status, 404);
-  assert.deepEqual((await ben.post('/api/todos/clear-completed')).json, { removed: 0 });
+  assert.deepEqual((await ben.post('/api/todos/clear-completed')).json, { removed: 0, undo: null });
 
   const anaTodos = (await ana.get('/api/todos')).json.todos;
-  assert.deepEqual(anaTodos, [{ id: anaTodo.id, text: "Ana's private task", done: true }]);
+  assert.deepEqual(anaTodos, [{ id: anaTodo.id, text: "Ana's private task", done: true, createdAt: anaTodo.createdAt }]);
 });
 
 test('todos: every todo route needs a session', async () => {

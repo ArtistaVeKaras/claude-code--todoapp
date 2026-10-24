@@ -15,6 +15,8 @@ const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
+const UNDO_WINDOW = 15 * MINUTE; // how long cleared tasks can be restored
+
 const SESSION = {
   idleShort: DAY, // without "remember me"
   idleLong: 30 * DAY, // with "remember me"
@@ -29,6 +31,7 @@ const TOKEN_TTL = {
 
 const TODO_MAX_LENGTH = 200;
 const TODO_MAX_PER_USER = 5000;
+const TODO_WRITES_PER_MINUTE = 120; // per user, for adding, editing and deleting single tasks
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // The four files the browser needs. Nothing else in the repo is served.
@@ -87,15 +90,34 @@ function createApp({
     // Same boundaries as the checks in currentSession() and consumeToken(): expired at t >= expires_at.
     purgeSessions: db.prepare('DELETE FROM sessions WHERE expires_at <= ? OR revoked_at IS NOT NULL OR created_at <= ?'),
     purgeTokens: db.prepare('DELETE FROM auth_tokens WHERE expires_at <= ? OR used_at IS NOT NULL'),
-    listTodos: db.prepare('SELECT id, text, done FROM todos WHERE user_id = ? ORDER BY position'),
+    listTodos: db.prepare('SELECT id, text, done, created_at FROM todos WHERE user_id = ? ORDER BY position'),
     countTodos: db.prepare('SELECT COUNT(*) AS n, COALESCE(MAX(position), 0) AS maxPos FROM todos WHERE user_id = ?'),
     insertTodo: db.prepare(
       'INSERT INTO todos (id, user_id, text, done, created_at, position) VALUES (?, ?, ?, 0, ?, ?)'
     ),
-    todo: db.prepare('SELECT id, text, done FROM todos WHERE id = ? AND user_id = ?'),
+    maxTrashPos: db.prepare(
+      'SELECT COALESCE(MAX(position), 0) AS maxPos FROM deleted_todos WHERE user_id = ? AND deleted_at > ?'
+    ),
+    todo: db.prepare('SELECT id, text, done, created_at FROM todos WHERE id = ? AND user_id = ?'),
     updateTodo: db.prepare('UPDATE todos SET text = COALESCE(?, text), done = COALESCE(?, done) WHERE id = ? AND user_id = ?'),
     deleteTodo: db.prepare('DELETE FROM todos WHERE id = ? AND user_id = ?'),
-    clearCompleted: db.prepare('DELETE FROM todos WHERE user_id = ? AND done = 1'),
+    trashAll: db.prepare(
+      `INSERT INTO deleted_todos (id, user_id, text, done, created_at, position, batch, deleted_at)
+       SELECT id, user_id, text, done, created_at, position, ?, ? FROM todos WHERE user_id = ?`
+    ),
+    trashCompleted: db.prepare(
+      `INSERT INTO deleted_todos (id, user_id, text, done, created_at, position, batch, deleted_at)
+       SELECT id, user_id, text, done, created_at, position, ?, ? FROM todos WHERE user_id = ? AND done = 1`
+    ),
+    deleteAllTodos: db.prepare('DELETE FROM todos WHERE user_id = ?'),
+    deleteCompletedTodos: db.prepare('DELETE FROM todos WHERE user_id = ? AND done = 1'),
+    trashedBatch: db.prepare(
+      'SELECT id, text, done, created_at, position FROM deleted_todos WHERE user_id = ? AND batch = ? AND deleted_at > ? ORDER BY position'
+    ),
+    restoreTodo: db.prepare('INSERT INTO todos (id, user_id, text, done, created_at, position) VALUES (?, ?, ?, ?, ?, ?)'),
+    deleteBatch: db.prepare('DELETE FROM deleted_todos WHERE user_id = ? AND batch = ?'),
+    purgeTrash: db.prepare('DELETE FROM deleted_todos WHERE deleted_at <= ?'),
+    purgeUserTrash: db.prepare('DELETE FROM deleted_todos WHERE user_id = ? AND deleted_at <= ?'),
   };
 
   function transaction(fn) {
@@ -111,7 +133,7 @@ function createApp({
   }
 
   const publicUser = (user) => ({ id: user.id, email: user.email, emailVerified: Boolean(user.email_verified_at) });
-  const publicTodo = (row) => ({ id: row.id, text: row.text, done: Boolean(row.done) });
+  const publicTodo = (row) => ({ id: row.id, text: row.text, done: Boolean(row.done), createdAt: row.created_at });
 
   // ---------- sessions ----------
 
@@ -422,6 +444,37 @@ function createApp({
     sendJson(res, 200, { todos: sql.listTodos.all(user.id).map(publicTodo) });
   }
 
+  function limitTodoWrites(user) {
+    limit(`todo-write:${user.id}`, TODO_WRITES_PER_MINUTE, MINUTE);
+  }
+
+  function limitTodoBulk(user) {
+    limit(`todos-bulk:${user.id}`, 20, 10 * MINUTE);
+  }
+
+  function limitTodoRestore(user) {
+    limit(`todos-restore:${user.id}`, 20, 10 * MINUTE);
+  }
+
+  // Removes this user's trash that is past the undo window, so cleared text does not wait for the hourly purge.
+  function purgeUserTrash(userId) {
+    sql.purgeUserTrash.run(userId, now() - UNDO_WINDOW);
+  }
+
+  // Moves the user's todos (all, or only completed) into deleted_todos under one new batch id.
+  // Returns { removed, batch }; batch is null, and nothing is stored, when no todo matched.
+  function moveToTrash(userId, onlyCompleted) {
+    return transaction(() => {
+      purgeUserTrash(userId);
+      const batch = newId();
+      const insert = onlyCompleted ? sql.trashCompleted : sql.trashAll;
+      const moved = Number(insert.run(batch, now(), userId).changes);
+      if (moved === 0) return { removed: 0, batch: null };
+      (onlyCompleted ? sql.deleteCompletedTodos : sql.deleteAllTodos).run(userId);
+      return { removed: moved, batch };
+    });
+  }
+
   function readTodoText(value) {
     const text = typeof value === 'string' ? value.trim() : '';
     if (!text) throw new HttpError(400, 'text_required');
@@ -431,17 +484,21 @@ function createApp({
 
   async function createTodo(req, res) {
     const { user } = requireAuth(req);
+    limitTodoWrites(user);
     const body = await readJson(req);
     const text = readTodoText(body.text);
     const { n, maxPos } = sql.countTodos.get(user.id);
     if (n >= TODO_MAX_PER_USER) throw new HttpError(400, 'too_many_todos');
     const id = newId();
-    sql.insertTodo.run(id, user.id, text, now(), maxPos + 1);
+    // Count restorable trash too, so a new task never takes a position an undo will give back.
+    const trashMax = sql.maxTrashPos.get(user.id, now() - UNDO_WINDOW).maxPos;
+    sql.insertTodo.run(id, user.id, text, now(), Math.max(maxPos, trashMax) + 1);
     sendJson(res, 201, { todo: publicTodo(sql.todo.get(id, user.id)) });
   }
 
   async function updateTodo(req, res, id) {
     const { user } = requireAuth(req);
+    limitTodoWrites(user);
     const body = await readJson(req);
     const hasText = Object.hasOwn(body, 'text');
     const text = hasText ? readTodoText(body.text) : null;
@@ -455,6 +512,7 @@ function createApp({
 
   async function removeTodo(req, res, id) {
     const { user } = requireAuth(req);
+    limitTodoWrites(user);
     const { changes } = sql.deleteTodo.run(id, user.id);
     if (changes === 0) throw new HttpError(404, 'not_found');
     sendJson(res, 204);
@@ -462,8 +520,40 @@ function createApp({
 
   async function clearCompletedTodos(req, res) {
     const { user } = requireAuth(req);
-    const { changes } = sql.clearCompleted.run(user.id);
-    sendJson(res, 200, { removed: Number(changes) });
+    limitTodoBulk(user);
+    const { removed, batch } = moveToTrash(user.id, true);
+    sendJson(res, 200, { removed, undo: batch });
+  }
+
+  async function clearAllTodos(req, res) {
+    const { user } = requireAuth(req);
+    limitTodoBulk(user);
+    const body = await readJson(req);
+    if (body.confirm !== 'all') throw new HttpError(400, 'confirm_required');
+    const { removed, batch } = moveToTrash(user.id, false);
+    sendJson(res, 200, { removed, undo: batch });
+  }
+
+  // Puts a cleared batch back in its original place: each row gets the position it had when it was cleared.
+  // Tasks that stayed keep theirs, so the list interleaves as before. This cannot collide: positions are
+  // never reused while a row is restorable, because createTodo numbers new tasks above both the live
+  // tasks and the user's unexpired trash. Tasks added since the clear therefore sort after the restored
+  // ones. Positions are not UNIQUE and may have gaps; only their order is used.
+  async function restoreTodos(req, res) {
+    const { user } = requireAuth(req);
+    limitTodoRestore(user);
+    const body = await readJson(req);
+    if (typeof body.undo !== 'string' || !body.undo || body.undo.length > 64) throw new HttpError(400, 'undo_required');
+    purgeUserTrash(user.id);
+    transaction(() => {
+      const rows = sql.trashedBatch.all(user.id, body.undo, now() - UNDO_WINDOW);
+      if (rows.length === 0) throw new HttpError(404, 'undo_expired');
+      const { n } = sql.countTodos.get(user.id);
+      if (n + rows.length > TODO_MAX_PER_USER) throw new HttpError(400, 'too_many_todos');
+      for (const row of rows) sql.restoreTodo.run(row.id, user.id, row.text, row.done, row.created_at, row.position);
+      sql.deleteBatch.run(user.id, body.undo);
+    });
+    sendJson(res, 200, { todos: sql.listTodos.all(user.id).map(publicTodo) });
   }
 
   // ---------- routing ----------
@@ -482,7 +572,9 @@ function createApp({
     'DELETE /api/auth/account': deleteAccount,
     'GET /api/todos': listTodos,
     'POST /api/todos': createTodo,
+    'DELETE /api/todos': clearAllTodos,
     'POST /api/todos/clear-completed': clearCompletedTodos,
+    'POST /api/todos/restore': restoreTodos,
   };
 
   async function handleApi(req, res, pathname) {
@@ -572,11 +664,12 @@ function createApp({
     const t = now();
     const sessions = sql.purgeSessions.run(t, t - SESSION.absolute).changes;
     const tokens = sql.purgeTokens.run(t).changes;
+    const todos = sql.purgeTrash.run(t - UNDO_WINDOW).changes;
     limiter.sweep();
-    return { sessions: Number(sessions), tokens: Number(tokens) };
+    return { sessions: Number(sessions), tokens: Number(tokens), todos: Number(todos) };
   }
 
   return { handler, purgeExpired, cookieName };
 }
 
-module.exports = { createApp, SESSION, TOKEN_TTL, TODO_MAX_LENGTH };
+module.exports = { createApp, SESSION, TOKEN_TTL, TODO_MAX_LENGTH, TODO_MAX_PER_USER, UNDO_WINDOW };

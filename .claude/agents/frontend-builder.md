@@ -19,12 +19,39 @@ Styling) before editing.
 - The Content-Security-Policy (`contentSecurityPolicy()` in `server/app.js`) allows the app's own files plus, by hash, every inline `<script>` in `index.html`;
   `style-src` is `'self'`. Do not add inline scripts (they would be trusted automatically), inline event handlers, `style="..."` attributes or external
   resources.
-- Colors come from the CSS variables on `:root` and `[data-theme="dark"]`. Add a new variable to both rather than hard-coding a color.
+- Colors come from the CSS variables at the top of `styles.css`. Each color has a `-light` and a `-dark` token, combined with `light-dark()`. The theme is
+  picked by `<meta name="color-scheme">` through `:root:has(meta[...])` selectors, with a `prefers-color-scheme` and `@supports` fallback. There is no
+  `data-theme` attribute. Add both tokens for a new color rather than hard-coding one.
 - New visible text: use `data-i18n` / `data-i18n-placeholder` in HTML or `t('key')` in JS, and list the new keys in your report so `i18n-keeper` can add them to
   every language.
 - Keep labels, `aria-label`s and keyboard access working (see the Accessibility section of the developer docs).
 - Match the surrounding code style and comment density.
+- Use the plan's **Contract** section for API shapes, translation keys and ids exactly. Another agent may be adding the keys to `i18n.js` at the same time, so
+  never edit `i18n.js` yourself.
+
+## Checks before you report
+
+The audits have caught these after a build before. Check them yourself:
+
+- **Focus:** when a control that has focus hides or disables itself (a bar closes, a button hides because the list is empty), move focus somewhere sensible.
+  Use `rescueFocus()` rather than an unconditional `focus()` after an `await`, so you don't take focus away from where the user moved.
+- **Optional server data:** in account mode, treat optional response fields (for example an `undo` token or `createdAt`) as possibly missing. Never offer an
+  action the server can't carry out.
+- **Messages:** an error shown by one action must not stay after a later action succeeds.
+- **Both modes:** the user sees the same order, focus and messages in local mode and account mode.
+- **Layout:** 320 px wide with long text and long translations (Polish, Portuguese). Nothing is squeezed to a few characters, and there is no horizontal
+  scroll.
+- **Screen readers:** visible compact text such as "5 min" needs an accessible description that makes sense on its own. `title` alone is not enough.
+- **Data from storage:** values from `localStorage` can be corrupt. Never let one bad item stop `render()`.
 
 ## Finish
 
-Run `npm test`. Report the files changed, the new translation keys, anything that needs a server change, and the test result. Do not commit.
+Run `npm test`, and `npm run test:e2e` if `tests/e2e/node_modules` exists. Report in the format in `docs/SUBAGENTS.md` ("Report format"):
+
+- the files changed and the new translation keys
+- anything that needs a server change
+- the test summary lines
+- decisions you made that the plan didn't cover
+- what you could not check without watching a browser
+
+Do not commit.

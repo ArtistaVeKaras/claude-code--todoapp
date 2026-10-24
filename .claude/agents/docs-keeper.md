@@ -13,12 +13,14 @@ You keep this TODO app's documentation true to the code. Start with `git diff ma
 - `docs/DEVELOPER.md`: the section for each changed area. Common ones: State, Persistence, Function reference, Events, Translations, Styling, Accessibility, API
   table, Settings table, Security table, Tests table, Known limitations (remove a limitation the change fixes; add any it introduces).
 - `.claude/skills/*/SKILL.md`: if a change alters how the app is started, tested or shipped.
+- `docs/MANUAL-CHECKS.md`: every step must match the code (timeouts, what hides the undo bar, date formats). Mark the checks that `tests/e2e` now automates.
+- `docs/plans/<feature>.md`: add a short "Outcome" line at the end saying what changed from the plan. Leave the rest as written.
 - `docs/diagrams/*.svg`: do not redraw them. If a diagram is now wrong, say which one and why.
 
 ## Style
 
 Match the existing docs: short plain sentences, tables for reference, no marketing words. Describe what the code does now, not the history of the change. Do not
-document anything you have not checked in the code.
+document anything you have not checked in the code. Hard-wrap prose at 160 columns.
 
 ## Finish
 

@@ -104,7 +104,6 @@
       --text: var(--text-dark);
       --muted: var(--muted-dark);
       --border: var(--border-dark);
-    --control-border: var(--control-border-dark);
       --control-border: var(--control-border-dark);
       --accent: var(--accent-dark);
       --accent-text: var(--accent-text-dark);
@@ -271,8 +270,36 @@ button:focus-visible {
 
 .todo-text {
   flex: 1;
+  min-width: 0;
   overflow-wrap: anywhere;
   text-wrap: pretty;
+}
+
+/* Small and muted, on the same line as the text. It never shrinks; long text wraps instead. */
+.todo-time {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+/* Narrow screens: the time moves under the text, in the text column, so the text keeps its width. */
+@media (max-width: 480px) {
+  .todo-item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    column-gap: 12px;
+    row-gap: 0;
+  }
+
+  .todo-time {
+    grid-column: 2 / -1;
+    grid-row: 2;
+  }
+
+  .todo-item > .todo-edit {
+    grid-column: 1 / -1;
+  }
 }
 
 .todo-item.done .todo-text {
@@ -333,7 +360,9 @@ button:focus-visible {
   .text-button,
   .link-button,
   .todo-form button,
-  .primary-button {
+  .primary-button,
+  .danger-button,
+  .dialog-actions button {
     min-block-size: 44px;
   }
 
@@ -352,14 +381,26 @@ button:focus-visible {
 
 .app-footer {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
+  gap: 4px 12px;
   margin-top: 16px;
   color: var(--muted);
   font-size: 0.9rem;
 }
 
+.footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+
 .link-button {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 24px;
   background: none;
   border: none;
   color: var(--muted);
@@ -387,6 +428,9 @@ button:focus-visible {
 }
 
 .text-button {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 24px;
   padding: 0;
   background: none;
   border: none;
@@ -413,6 +457,63 @@ button:focus-visible {
 .form-error {
   border-left-color: var(--danger);
   color: var(--danger);
+}
+
+.undo-bar {
+  margin: 16px 0 0; /* below the list, so it never moves the controls above it */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* ---------- clear all confirmation ---------- */
+
+.confirm-dialog {
+  max-width: min(400px, calc(100vw - 32px));
+  padding: 20px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--control-border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+
+.confirm-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.confirm-dialog h2 {
+  margin: 0 0 8px;
+  font-size: 1.15rem;
+}
+
+.confirm-dialog p {
+  margin: 0 0 20px;
+}
+
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.dialog-actions button {
+  padding: 8px 16px;
+  background: var(--bg);
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* Text colour is the accent text token: white on the light red, near-black on the dark red. */
+.dialog-actions .danger-button,
+.danger-button {
+  background: var(--danger);
+  color: var(--accent-text);
+  border-color: var(--danger);
+  font-weight: 600;
 }
 
 #verify-banner {

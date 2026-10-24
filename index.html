@@ -93,11 +93,28 @@
       <p id="edit-hint" class="visually-hidden" data-i18n="editHint">Press Enter to save or Escape to cancel.</p>
       <p id="announcer" class="visually-hidden" role="status"></p>
 
+      <div id="undo-bar" class="notice undo-bar" hidden>
+        <span id="undo-message"></span>
+        <button id="undo-clear" type="button" class="text-button" aria-describedby="undo-message" data-i18n="undo">Undo</button>
+      </div>
+
       <footer class="app-footer">
         <span id="items-left"></span>
-        <button id="clear-completed" type="button" class="link-button" data-i18n="clearCompleted">Clear completed</button>
+        <div class="footer-actions">
+          <button id="clear-completed" type="button" class="link-button" data-i18n="clearCompleted">Clear completed</button>
+          <button id="clear-all" type="button" class="link-button" data-i18n="clearAll" hidden>Clear all</button>
+        </div>
       </footer>
     </div>
+
+    <dialog id="clear-all-dialog" class="confirm-dialog" aria-labelledby="clear-all-title" aria-describedby="clear-all-message">
+      <h2 id="clear-all-title" data-i18n="clearAllTitle">Clear all tasks?</h2>
+      <p id="clear-all-message"></p>
+      <form method="dialog" class="dialog-actions">
+        <button type="submit" value="cancel" autofocus data-i18n="cancel">Cancel</button>
+        <button type="submit" value="confirm" class="danger-button" data-i18n="clearAllConfirmButton">Clear all</button>
+      </form>
+    </dialog>
   </main>
 
   <script src="i18n.js"></script>

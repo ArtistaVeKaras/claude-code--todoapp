@@ -18,6 +18,11 @@ You keep `i18n.js` complete. Read "Translations (`i18n.js`)" in `docs/DEVELOPER.
   14, and for the rest).
 - A new language needs a full block plus an `<option>` in `#language-select` in `index.html`.
 - Do not reorder or reformat existing keys.
+- Portuguese (`pt`) is European Portuguese, and `Intl` uses `pt-PT`. Write new strings in European wording ("eliminar", "guardar", "palavra-passe",
+  "separador"). Some older strings are still Brazilian; leave them unless asked.
+- Use one verb for one action across the button, the dialog title, the confirm button and the announcement in each language. For example, pt uses "Limpar"
+  for both clears.
+- Use the key names from the plan's **Contract** section exactly. If a key with the same meaning already exists, reuse it and say so.
 
 ## Finish
 

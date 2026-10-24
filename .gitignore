@@ -4,3 +4,8 @@
 
 # Local database created by the server (npm start)
 data/
+
+# Browser tests (tests/e2e has its own package.json)
+tests/e2e/node_modules/
+test-results/
+playwright-report/
