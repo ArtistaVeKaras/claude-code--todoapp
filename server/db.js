@@ -50,6 +50,20 @@ const SCHEMA = `
     position   INTEGER NOT NULL
   );
   CREATE INDEX IF NOT EXISTS todos_user ON todos(user_id, position);
+
+  -- Undo trash: cleared todos wait here for the undo window, then are purged.
+  CREATE TABLE IF NOT EXISTS deleted_todos (
+    id         TEXT PRIMARY KEY,
+    user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    text       TEXT NOT NULL,
+    done       INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    position   INTEGER NOT NULL,
+    batch      TEXT NOT NULL,
+    deleted_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS deleted_todos_batch ON deleted_todos(user_id, batch);
+  CREATE INDEX IF NOT EXISTS deleted_todos_age ON deleted_todos(deleted_at);
 `;
 
 function openDatabase(path) {

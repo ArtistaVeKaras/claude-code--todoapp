@@ -22,7 +22,9 @@ Only run read-only commands (`git diff`, `git log`, `git show`, `npm test`).
 - **Rate limits**: routes that send email or check passwords are limited.
 - **Time**: expiry logic uses the injected `now()`, not `Date.now()`.
 - **Input**: body size limit, type checks, length limits (task text 200 characters).
-- **Dependencies**: no packages added.
+- **Dependencies**: no packages added. The only exception is `@playwright/test`, pinned in `tests/e2e/package.json` and never loaded by the app or server.
+  Flag any other `package.json` change, and any test-only setting (such as `TRUST_PROXY`) that leaks outside `tests/e2e/playwright.config.js`.
+- **Data kept**: anything deleted but kept for undo (`deleted_todos`) is scoped by user, purged on time, and removed with the account.
 
 ## Output
 

@@ -17,6 +17,12 @@ const els = {
   announcer: document.getElementById('announcer'),
   itemsLeft: document.getElementById('items-left'),
   clearCompleted: document.getElementById('clear-completed'),
+  clearAll: document.getElementById('clear-all'),
+  clearAllDialog: document.getElementById('clear-all-dialog'),
+  clearAllMessage: document.getElementById('clear-all-message'),
+  undoBar: document.getElementById('undo-bar'),
+  undoMessage: document.getElementById('undo-message'),
+  undoClear: document.getElementById('undo-clear'),
   filters: document.querySelectorAll('[data-filter]'),
   themeToggle: document.getElementById('theme-toggle'),
   languageSelect: document.getElementById('language-select'),
@@ -60,6 +66,13 @@ let editSaving = false; // true while the edit is being sent to the server
 let editErrorShown = false; // a failed save left an error in the status line
 let pendingEditId = null; // task whose Edit was clicked while another edit was still saving
 let pointerDown = false; // a mouse button is held, so a click is still on its way
+// Undo for Clear all / Clear completed: null, or { token, todos, messageKey, timer }.
+// token is the server's undo token (account mode); todos is the list before the clear.
+let undoState = null;
+let undoing = false; // an undo request is in flight
+// Account mode only: the server refuses an undo after 15 minutes (UNDO_WINDOW in server/app.js), so the bar
+// goes a little earlier. In local mode there is no timer (WCAG 2.2.1); the bar stays until the next action.
+const ACCOUNT_UNDO_WINDOW_MS = 15 * 60 * 1000 - 5000;
 
 // ---------- storage ----------
 
@@ -123,6 +136,10 @@ const ERROR_KEYS = {
   invalid_token: 'errInvalidToken',
   network_error: 'errNetwork',
   not_found: 'errTaskNotFound',
+  undo_expired: 'errUndoExpired',
+  too_many_todos: 'errTooManyTodos',
+  confirm_required: 'errConfirmRequired',
+  undo_required: 'errUndoRequired',
 };
 
 function errorKey(error) {
@@ -138,6 +155,11 @@ function detectLanguage() {
 
 function t(key) {
   return (TRANSLATIONS[lang] || TRANSLATIONS.en)[key];
+}
+
+// The Intl locale for the page language. Portuguese is European Portuguese.
+function intlLocale() {
+  return lang === 'pt' ? 'pt-PT' : lang;
 }
 
 function applyLanguage() {
@@ -235,12 +257,77 @@ function handleApiError(error) {
 
 // ---------- todos ----------
 
+// ---------- undo ----------
+
+function showUndo(snapshot, token, messageKey) {
+  hideUndo();
+  undoState = {
+    token,
+    todos: snapshot,
+    messageKey,
+    timer: mode === 'account' ? setTimeout(hideUndo, ACCOUNT_UNDO_WINDOW_MS) : null,
+  };
+  renderUndo();
+}
+
+function hideUndo() {
+  if (undoState) clearTimeout(undoState.timer);
+  // Focus on Undo would be lost with the bar, so it goes to the task input.
+  const hadFocus = undoState && els.undoBar.contains(document.activeElement);
+  undoState = null;
+  renderUndo();
+  if (hadFocus) els.input.focus();
+}
+
+// Shows the undo bar after a clear and moves focus to Undo if the control that had focus is gone.
+// Focus on Undo reads the message (aria-describedby), so announce() is only needed when focus stays put.
+function offerUndo(snapshot, token, messageKey) {
+  showUndo(snapshot, token, messageKey);
+  rescueFocus(els.undoClear);
+  if (document.activeElement !== els.undoClear) announce(messageKey);
+}
+
+function renderUndo() {
+  els.undoBar.hidden = !undoState;
+  els.undoMessage.textContent = undoState ? t(undoState.messageKey) : '';
+}
+
+// Puts the cleared tasks back. In account mode the server restores them from its own copy.
+async function undoClear() {
+  if (!undoState || undoing) return;
+  undoing = true;
+  try {
+    if (mode === 'account') {
+      const data = await api('POST', '/api/todos/restore', { undo: undoState.token });
+      todos = data.todos;
+    } else {
+      todos = undoState.todos;
+      save(STORAGE_KEYS.todos, todos);
+    }
+  } catch (error) {
+    // The token is no longer valid, so the bar has nothing left to offer.
+    if (error.message === 'undo_expired') hideUndo();
+    throw error;
+  } finally {
+    undoing = false;
+  }
+  render();
+  announce('tasksRestored');
+  hideUndo();
+  els.input.focus();
+}
+
+// ---------- todos ----------
+
 async function addTodo(text) {
+  hideUndo();
   if (mode === 'account') {
     const { todo } = await api('POST', '/api/todos', { text });
     todos.push(todo);
   } else {
-    todos.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), text, done: false });
+    // The id is the time in base 36 plus 4 random characters; backfillCreatedAt() relies on that.
+    const now = Date.now();
+    todos.push({ id: now.toString(36) + Math.random().toString(36).slice(2, 6).padEnd(4, '0'), text, done: false, createdAt: now });
     save(STORAGE_KEYS.todos, todos);
   }
   render();
@@ -248,6 +335,7 @@ async function addTodo(text) {
 }
 
 async function toggleTodo(id) {
+  hideUndo();
   const todo = todos.find((item) => item.id === id);
   if (!todo) return;
   if (mode === 'account') {
@@ -264,6 +352,7 @@ async function toggleTodo(id) {
 // Changes a task's text. Like the other actions it is not optimistic: in account mode the
 // task changes only once the server has accepted the new text.
 async function editTodo(id, text) {
+  hideUndo();
   const todo = todos.find((item) => item.id === id);
   if (!todo) return;
   if (mode === 'account') {
@@ -411,6 +500,7 @@ function commitEdit(source, refocus) {
 }
 
 async function deleteTodo(id) {
+  hideUndo();
   if (mode === 'account') {
     await api('DELETE', `/api/todos/${encodeURIComponent(id)}`);
   }
@@ -421,13 +511,125 @@ async function deleteTodo(id) {
 }
 
 async function clearCompletedTodos() {
+  hideUndo();
+  const snapshot = todos.slice();
+  let token = null;
   if (mode === 'account') {
-    await api('POST', '/api/todos/clear-completed');
+    ({ undo: token } = await api('POST', '/api/todos/clear-completed'));
   }
   todos = todos.filter((item) => !item.done);
   if (mode === 'local') save(STORAGE_KEYS.todos, todos);
   render();
-  announce('completedCleared');
+  // Nothing removed means nothing to undo; in account mode Undo also needs the server's token.
+  if (todos.length < snapshot.length && (mode === 'local' || token)) offerUndo(snapshot, token, 'completedCleared');
+  else announce('completedCleared');
+}
+
+async function clearAllTodos() {
+  hideUndo();
+  const snapshot = todos.slice();
+  let token = null;
+  els.clearAll.disabled = true; // the dialog cannot be reopened while the request is in flight
+  try {
+    if (mode === 'account') {
+      ({ undo: token } = await api('DELETE', '/api/todos', { confirm: 'all' }));
+    }
+  } finally {
+    els.clearAll.disabled = false;
+  }
+  todos = [];
+  if (mode === 'local') save(STORAGE_KEYS.todos, todos);
+  resetEdit();
+  render();
+  if (snapshot.length && (mode === 'local' || token)) {
+    // The Clear all button has just hidden itself, so focus goes to Undo unless the user moved elsewhere.
+    offerUndo(snapshot, token, 'allCleared');
+  } else {
+    announce('allCleared');
+    els.input.focus();
+  }
+}
+
+// ---------- time added ----------
+
+const formatters = {}; // Intl formatters, built once per locale
+
+function formatter(key, create) {
+  const cacheKey = intlLocale() + '|' + key;
+  if (!formatters[cacheKey]) formatters[cacheKey] = create(intlLocale());
+  return formatters[cacheKey];
+}
+
+// Compact text for when a task was added: "now", "5 min", "14:32", "3 Mar", "3 Mar 2025".
+function formatAddedAt(ms) {
+  const date = new Date(ms);
+  const now = new Date();
+  const minutes = Math.floor((now.getTime() - ms) / 60000);
+  if (minutes < 1) return t('timeNow');
+  if (minutes < 60) {
+    return formatter('minute', (loc) => new Intl.NumberFormat(loc, { style: 'unit', unit: 'minute', unitDisplay: 'short' })).format(minutes);
+  }
+  if (date.toDateString() === now.toDateString()) {
+    return formatter('time', (loc) => new Intl.DateTimeFormat(loc, { timeStyle: 'short' })).format(date);
+  }
+  if (date.getFullYear() === now.getFullYear()) {
+    return formatter('day', (loc) => new Intl.DateTimeFormat(loc, { day: 'numeric', month: 'short' })).format(date);
+  }
+  return formatter('year', (loc) => new Intl.DateTimeFormat(loc, { day: 'numeric', month: 'short', year: 'numeric' })).format(date);
+}
+
+// The <time> element at the end of a row, or null for a task without a creation time.
+function createTimeElement(item, index) {
+  const ms = item.createdAt;
+  // A corrupt value (a string, 1e20, NaN) must not make render() throw in toISOString().
+  if (typeof ms !== 'number' || !Number.isFinite(ms)) return null;
+  const date = new Date(ms);
+  if (Number.isNaN(date.getTime())) return null;
+  const full = formatter('full', (loc) => new Intl.DateTimeFormat(loc, { dateStyle: 'medium', timeStyle: 'short' }));
+  const fullText = t('addedOn')(full.format(date));
+
+  const time = document.createElement('time');
+  time.className = 'todo-time';
+  time.id = `todo-time-${index}`;
+  time.dateTime = date.toISOString();
+  // Sighted users see the short text (full date on hover); screen readers get the absolute one.
+  const short = document.createElement('span');
+  short.className = 'todo-time-short';
+  short.setAttribute('aria-hidden', 'true');
+  short.title = fullText;
+  short.textContent = formatAddedAt(ms);
+  const hidden = document.createElement('span');
+  hidden.className = 'visually-hidden';
+  hidden.textContent = fullText;
+  time.append(short, hidden);
+  return time;
+}
+
+// Keeps "5 min" current. It only rewrites the short text, never calls render(), so an open edit is left alone.
+function refreshTaskTimes() {
+  if (document.hidden) return;
+  els.list.querySelectorAll('.todo-time .todo-time-short').forEach((short) => {
+    const ms = Date.parse(short.parentElement.dateTime);
+    if (Number.isNaN(ms)) return;
+    const text = formatAddedAt(ms);
+    if (short.textContent !== text) short.textContent = text;
+  });
+}
+
+// Tasks saved before createdAt existed get it from their id (time in base 36 + 4 random characters).
+function backfillCreatedAt(list) {
+  const min = Date.UTC(2020, 0, 1);
+  const max = Date.now() + 86400000;
+  let changed = false;
+  list.forEach((item) => {
+    if (typeof item.createdAt === 'number') return;
+    const ms = parseInt(String(item.id).slice(0, -4), 36);
+    if (ms >= min && ms <= max) {
+      item.createdAt = ms;
+      changed = true;
+    }
+  });
+  if (changed) save(STORAGE_KEYS.todos, list);
 }
 
 function resetEdit() {
@@ -440,6 +642,8 @@ function resetEdit() {
 
 // Runs a todo action, showing any server error instead of failing silently.
 function run(action) {
+  // A new action replaces an error left by an earlier one. The edit field clears its own empty-text error.
+  if (els.status.classList.contains('error') && statusKey !== 'errTaskEmpty') clearStatus();
   return action().catch(handleApiError);
 }
 
@@ -608,7 +812,12 @@ function render() {
     del.append(icon, label);
     del.addEventListener('click', () => run(() => deleteTodo(item.id)));
 
-    li.append(checkbox, span, edit, del);
+    const time = createTimeElement(item, index);
+    if (time) checkbox.setAttribute('aria-describedby', time.id);
+
+    li.append(checkbox, span);
+    if (time) li.append(time);
+    li.append(edit, del);
     els.list.appendChild(li);
   });
 
@@ -623,6 +832,8 @@ function render() {
   els.empty.hidden = visible.length > 0;
   els.itemsLeft.textContent = t('itemsLeft')(todos.filter((item) => !item.done).length);
   els.clearCompleted.hidden = !todos.some((item) => item.done);
+  els.clearAll.hidden = todos.length === 0;
+  renderUndo();
   els.filters.forEach((btn) => btn.setAttribute('aria-pressed', String(btn.dataset.filter === filter)));
 }
 
@@ -690,6 +901,7 @@ async function signedIn(signedInUser) {
   els.verifyBanner.hidden = user.emailVerified;
   todos = [];
   filter = 'all';
+  hideUndo();
   resetEdit();
   render();
   els.todoView.hidden = false;
@@ -704,6 +916,7 @@ async function signedIn(signedInUser) {
 function signedOut() {
   user = null;
   todos = [];
+  hideUndo();
   resetEdit();
   render();
   setAuthMode('signin');
@@ -805,6 +1018,7 @@ async function start() {
 
   if (mode === 'local') {
     todos = load(STORAGE_KEYS.todos, []);
+    backfillCreatedAt(todos);
     render();
     els.todoView.hidden = false;
     return;
@@ -846,6 +1060,22 @@ els.filters.forEach((btn) =>
 
 // The button hides itself once nothing is completed, so focus moves to the task input.
 els.clearCompleted.addEventListener('click', () => run(clearCompletedTodos).then(() => rescueFocus(els.input)));
+
+els.clearAll.addEventListener('click', () => {
+  els.clearAllMessage.textContent = t('clearAllConfirm')(todos.length);
+  els.clearAllDialog.returnValue = ''; // a previous Confirm must not survive an Escape
+  els.clearAllDialog.showModal();
+});
+
+// Escape and Cancel close the dialog with another returnValue, so only Confirm clears.
+els.clearAllDialog.addEventListener('close', () => {
+  if (els.clearAllDialog.returnValue === 'confirm') run(clearAllTodos);
+});
+
+els.undoClear.addEventListener('click', () => run(undoClear));
+
+setInterval(refreshTaskTimes, 60000);
+document.addEventListener('visibilitychange', refreshTaskTimes);
 
 els.themeToggle.addEventListener('click', toggleTheme);
 

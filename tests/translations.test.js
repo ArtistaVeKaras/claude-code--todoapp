@@ -62,3 +62,24 @@ test('Polish item counts use the right plural forms', () => {
   assert.equal(left(12), '12 zadań do zrobienia');
   assert.equal(left(22), '22 zadania do zrobienia');
 });
+
+test('Polish clear-all confirmation uses the right plural forms', () => {
+  const confirm = TRANSLATIONS.pl.clearAllConfirm;
+  assert.equal(confirm(1), 'Usuniesz 1 zadanie.');
+  assert.equal(confirm(3), 'Usuniesz 3 zadania, w tym ukończone.');
+  assert.equal(confirm(5), 'Usuniesz 5 zadań, w tym ukończone.');
+  assert.equal(confirm(12), 'Usuniesz 12 zadań, w tym ukończone.');
+  assert.equal(confirm(22), 'Usuniesz 22 zadania, w tym ukończone.');
+  assert.equal(confirm(25), 'Usuniesz 25 zadań, w tym ukończone.');
+});
+
+test('every language defines the clear-all, undo and time keys', () => {
+  const keys = [
+    'clearAll', 'clearAllTitle', 'clearAllConfirm', 'clearAllConfirmButton', 'cancel', 'allCleared', 'completedCleared', 'undo',
+    'tasksRestored', 'timeNow', 'addedOn', 'errUndoExpired', 'errTooManyTodos', 'errConfirmRequired', 'errUndoRequired',
+  ];
+  for (const lang of languages) {
+    for (const key of keys) assert.ok(key in TRANSLATIONS[lang], `${lang}.${key}`);
+    assert.ok(TRANSLATIONS[lang].addedOn('X').includes('X'), `${lang}.addedOn`);
+  }
+});

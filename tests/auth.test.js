@@ -447,12 +447,12 @@ test('purgeExpired deletes revoked or expired sessions and used or expired token
   await env.client().post('/api/auth/password/forgot', { email: 'ana@example.com' });
 
   // 1 revoked session; tokens: 1 verify (24h) + 1 reset (30 min), both unused.
-  assert.deepEqual(env.app.purgeExpired(), { sessions: 1, tokens: 0 });
+  assert.deepEqual(env.app.purgeExpired(), { sessions: 1, tokens: 0, todos: 0 });
   env.advance(HOUR);
-  assert.deepEqual(env.app.purgeExpired(), { sessions: 0, tokens: 1 }, 'reset token expired');
+  assert.deepEqual(env.app.purgeExpired(), { sessions: 0, tokens: 1, todos: 0 }, 'reset token expired');
   assert.equal((await keep.get('/api/auth/me')).status, 200);
   env.advance(SESSION.idleLong);
-  assert.deepEqual(env.app.purgeExpired(), { sessions: 1, tokens: 1 });
+  assert.deepEqual(env.app.purgeExpired(), { sessions: 1, tokens: 1, todos: 0 });
 });
 
 test('a failing mailer never breaks signup or forgot-password', async () => {

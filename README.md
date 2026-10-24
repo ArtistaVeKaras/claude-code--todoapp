@@ -7,6 +7,8 @@ the small built-in server to get user accounts.
 
 - Add, edit, complete and delete tasks (double-click a task or press its ✎ button to edit; Enter or leaving the field saves, Escape cancels)
 - Filter by All, Active or Completed, and clear completed tasks
+- Clear all tasks after a confirmation, and undo Clear all or Clear completed from the bar above the footer (see Life of a task for how long)
+- Each task shows when it was added: "now", "5 min", the time, the day and month, or the date with the year. Hover it for the full date.
 - Follows your system light or dark setting, with a 🌙 / ☀️ button to switch for this site (pressing it again goes back to following the system)
 - Language switcher: English, French, Portuguese, Spanish and Polish
 - Tasks, theme and language are saved in your browser (localStorage), so they are still there after a reload
@@ -20,8 +22,8 @@ styles.css   Styles for the light and dark themes
 i18n.js      Translations (English, French, Portuguese, Spanish, Polish)
 app.js       App logic
 server/      Optional server for accounts (built-in Node modules only)
-tests/       Automated tests (npm test)
-docs/        Developer documentation and architecture diagrams
+tests/       Automated tests (npm test), and browser tests in tests/e2e (npm run test:e2e)
+docs/        Developer documentation, manual browser checks and architecture diagrams
 ```
 
 For a detailed description of the code, see the [developer documentation](docs/DEVELOPER.md).
@@ -52,7 +54,11 @@ All.
 
 **Life of a task.** A task is one object. Ticking it changes `done`, and editing changes `text`. Because each change saves `todo-items` before redrawing, a
 reload brings every task back as it was. Editing does not change whether a task is Active or Done. Clear completed removes all Done tasks at once; the ✕
-button removes a single task from either state.
+button removes a single task from either state. Clear all asks for confirmation first and then removes every task. After Clear all or Clear completed, an Undo
+bar puts the tasks back at their original positions; tasks added in between go after them. In local mode the undo is kept in memory only: it stays until your
+next action and is lost on reload. In account mode the server keeps the cleared tasks for 15 minutes, and the bar is hidden just before that. Adding, ticking,
+editing or deleting a task, signing in or signing out hides the bar.
+Each task also records the time it was added (`createdAt`); local tasks saved before this existed get it from their id.
 
 ![Life of a task](docs/diagrams/task-lifecycle.svg)
 
@@ -95,6 +101,9 @@ packages to install.
 npm start
 ```
 
+While you change server code, run `npm run dev` instead. It restarts the server when a server file changes. A server that is already running keeps serving its
+old API after you change the code, so restart it or use `npm run dev`.
+
 Open http://localhost:3000, choose **No account yet? Create one**, and sign in. In development, confirmation and password-reset emails are printed in the
 terminal; open the link from there.
 
@@ -107,7 +116,18 @@ the security works, see [Accounts and the server](docs/DEVELOPER.md#accounts-and
 npm test
 ```
 
-This runs the server, account and translation tests with Node's built-in test runner.
+This runs the server, account, undo and translation tests with Node's built-in test runner. It does not load the real page.
+
+Browser tests use Playwright and the Microsoft Edge that is already installed. Install them once, then run them:
+
+```bash
+npm --prefix tests/e2e install
+npm run test:e2e           # headless
+npm run test:e2e:headed    # visible Edge window, one test at a time, slowed down
+```
+
+They start their own server on port 3100 with a temporary database, so they never touch the server on port 3000 or `data/todo.db`. The headed run is the final
+check. The checks that are still manual are listed in [manual checks](docs/MANUAL-CHECKS.md).
 
 ## Run it from Claude Code
 

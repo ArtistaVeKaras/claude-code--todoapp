@@ -7,6 +7,9 @@
   },
   "scripts": {
     "start": "node server/server.js",
-    "test": "node --test"
+    "dev": "node --watch server/server.js",
+    "test": "node --test",
+    "test:e2e": "npm --prefix tests/e2e test",
+    "test:e2e:headed": "npm --prefix tests/e2e run test:headed"
   }
 }

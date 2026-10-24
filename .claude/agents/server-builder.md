@@ -21,7 +21,20 @@ table.
 - Add a rate limit (`server/rate-limit.js`) to any new route that sends email or checks a password.
 - Errors are `{ "error": "<code>" }`. If the page shows a new error code, list it so `i18n-keeper` adds an `err*` key.
 - Match the surrounding code style.
+- Use the plan's **Contract** section for routes, bodies and error codes exactly. If the contract has to change, stop and report it; the page is being built
+  against it at the same time.
+- Choices a user would notice, such as the order of restored items, timeouts and limits, belong to the plan. If the plan doesn't settle one, pick the option
+  that matches local mode and list it under "Decisions" in your report.
 
 ## Finish
 
-Run `npm test`. Report the files changed, new routes or error codes, any security-table row that changed, and the test result. Do not commit.
+Run `npm test`. Report in the format in `docs/SUBAGENTS.md` ("Report format"):
+
+- the files changed
+- new routes and error codes
+- any security-table row that changed
+- the test summary lines
+- the decisions you made
+
+Node loads server code only at startup. End the report with: "Restart any running server (`npm start`) to load this change, or use `npm run dev`, which
+restarts on its own." Do not commit.

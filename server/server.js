@@ -28,6 +28,8 @@ const app = createApp({
   trustProxy: process.env.TRUST_PROXY === '1',
 });
 
+// Purge once now so expired trash does not survive a restart, then hourly.
+app.purgeExpired();
 setInterval(app.purgeExpired, 60 * 60 * 1000).unref();
 
 http.createServer(app.handler).listen(port, () => {
